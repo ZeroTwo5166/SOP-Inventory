@@ -18,8 +18,7 @@ namespace SOP.Controllers
             _addressRepository = adressRepository;
         }
 
-        //[Authorize("Admin", "Instruktør", "Drift")]
-        [AllowAnonymous]
+        [Authorize("Admin", "Instruktør", "Drift")]
         [HttpGet]
         public async Task<IActionResult> GetAllAsync()
         {
@@ -39,9 +38,7 @@ namespace SOP.Controllers
             }
         }
 
-        //[Authorize("Admin", "Instruktør", "Drift")]
-        [AllowAnonymous]
-
+        [Authorize("Admin", "Instruktør", "Drift")]
         [HttpPost]
         public async Task<IActionResult> CreateAsync([FromBody] AddressRequest addressRequest)
         {
@@ -61,9 +58,7 @@ namespace SOP.Controllers
             }
         }
 
-        //[Authorize("Admin", "Instruktør", "Drift")]
-        [AllowAnonymous]
-
+        [Authorize("Admin", "Instruktør", "Drift")]
         [HttpGet]
         [Route("{Id}")]
         public async Task<IActionResult> FindByIdAsync([FromRoute] int Id)
@@ -85,8 +80,7 @@ namespace SOP.Controllers
             }
         }
 
-        //[Authorize("Admin", "Instruktør", "Drift")]
-        [AllowAnonymous]
+        [Authorize("Admin", "Instruktør", "Drift")]
 
         [HttpPut]
         [Route("{Id}")]
@@ -112,8 +106,6 @@ namespace SOP.Controllers
         }
 
         [Authorize("Admin")]
-        [AllowAnonymous]
-
         [HttpDelete]
         [Route("{Id}")]
         public async Task<IActionResult> DeleteByIdAsync([FromRoute] int Id)

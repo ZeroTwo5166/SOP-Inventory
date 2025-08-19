@@ -19,7 +19,6 @@ namespace SOP.Controllers
         }
 
         [Authorize("Admin", "Instruktør", "Drift")]
-        [AllowAnonymous]
         [HttpGet]
         public async Task<IActionResult> GetAllAsync()
         {
@@ -38,8 +37,7 @@ namespace SOP.Controllers
             }
         }
 
-        //[Authorize("Admin", "Instruktør", "Drift")]
-        [AllowAnonymous]
+        [Authorize("Admin", "Instruktør", "Drift")]
         [HttpPost]
         public async Task<IActionResult> CreateAsync([FromBody] BuildingRequest buildingRequest)
         {
@@ -60,8 +58,6 @@ namespace SOP.Controllers
         }
 
         [Authorize("Admin", "Instruktør", "Drift")]
-        [AllowAnonymous]
-
         [HttpGet]
         [Route("{Id}")]
         public async Task<IActionResult> FindByIdAsync([FromRoute] int Id)
@@ -83,8 +79,6 @@ namespace SOP.Controllers
         }
 
         [Authorize("Admin", "Instruktør", "Drift")]
-        [AllowAnonymous]
-
         [HttpPut]
         [Route("{Id}")]
         public async Task<IActionResult> UpdateByIdAsync([FromRoute] int Id, [FromBody] BuildingRequest buildingRequest)
@@ -109,8 +103,6 @@ namespace SOP.Controllers
         }
 
         [Authorize("Admin")]
-        [AllowAnonymous]
-
         [HttpDelete]
         [Route("{Id}")]
         public async Task<IActionResult> DeleteByIdAsync([FromRoute] int Id)
