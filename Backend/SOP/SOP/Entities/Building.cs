@@ -13,9 +13,9 @@ namespace SOP.Entities
         public string BuildingName { get; set; }
 
         
-        public int ZipCode { get; set; }
+        public int AddressId { get; set; }
 
-        [ForeignKey("ZipCode")]
+        [ForeignKey("AddressId")]
         public Address Address { get; set; }
     }
 }

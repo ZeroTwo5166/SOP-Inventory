@@ -25,7 +25,7 @@
           <tr *ngFor="let building of filteredBuildings">
             <td>{{ building.buildingName }}</td>
             <td>{{ building.buildingAddress?.road }}</td>
-            <td>{{ building.zipCode }}</td>
+            <td>{{ building.AddressId }}</td>
             <td>
               <button class="btn btn-primary btn-sm" (click)="selectBuilding(building); $event.stopPropagation()">
                 Rediger
@@ -57,7 +57,7 @@
           </div>
           <div class="form-group">
             <label for="zipCode">Postnummer</label>
-            <select class="form-control" id="zipCode" [(ngModel)]="newBuilding.zipCode" name="zipCode" required>
+            <select class="form-control" id="zipCode" [(ngModel)]="newBuilding.AddressId" name="zipCode" required>
               <option *ngFor="let zip of zipCodes" [value]="zip">
                 {{ zip }}
               </option>
@@ -82,7 +82,7 @@
         </div>
         <div class="form-group">
           <label for="zipCode">Postnummer</label>
-          <select class="form-control" id="zipCode" [(ngModel)]="selectedBuilding.zipCode" name="zipCode" required>
+          <select class="form-control" id="zipCode" [(ngModel)]="selectedBuilding.AddressId" name="zipCode" required>
             <option *ngFor="let zip of zipCodes" [value]="zip">
               {{ zip }}
             </option>

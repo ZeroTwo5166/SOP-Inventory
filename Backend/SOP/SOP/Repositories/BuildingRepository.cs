@@ -31,7 +31,12 @@ namespace SOP.Repositories
         {
             _context.Building.Add(newBuilding);
             await _context.SaveChangesAsync();
-            return newBuilding;
+
+            var buildingWithAddress = await _context.Building
+                .Include(b => b.Address)
+                .FirstOrDefaultAsync(b => b.Id == newBuilding.Id);
+
+            return buildingWithAddress;
         }
 
         public async Task<Building?> FindByIdAsync(int Id)
@@ -48,7 +53,7 @@ namespace SOP.Repositories
             if (building != null)
             {
                 building.BuildingName = newBuilding.BuildingName;
-                building.ZipCode = newBuilding.ZipCode;
+                building.AddressId = newBuilding.AddressId;
 
                 await _context.SaveChangesAsync();
 

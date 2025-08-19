@@ -1,4 +1,5 @@
-﻿using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
 using SOP.DTOs;
 using SOP.Entities;
 using SOP.Repositories;
@@ -18,6 +19,7 @@ namespace SOP.Controllers
         }
 
         [Authorize("Admin", "Instruktør", "Drift")]
+        [AllowAnonymous]
         [HttpGet]
         public async Task<IActionResult> GetAllAsync()
         {
@@ -36,7 +38,8 @@ namespace SOP.Controllers
             }
         }
 
-        [Authorize("Admin", "Instruktør", "Drift")]
+        //[Authorize("Admin", "Instruktør", "Drift")]
+        [AllowAnonymous]
         [HttpPost]
         public async Task<IActionResult> CreateAsync([FromBody] BuildingRequest buildingRequest)
         {
@@ -57,6 +60,8 @@ namespace SOP.Controllers
         }
 
         [Authorize("Admin", "Instruktør", "Drift")]
+        [AllowAnonymous]
+
         [HttpGet]
         [Route("{Id}")]
         public async Task<IActionResult> FindByIdAsync([FromRoute] int Id)
@@ -78,6 +83,8 @@ namespace SOP.Controllers
         }
 
         [Authorize("Admin", "Instruktør", "Drift")]
+        [AllowAnonymous]
+
         [HttpPut]
         [Route("{Id}")]
         public async Task<IActionResult> UpdateByIdAsync([FromRoute] int Id, [FromBody] BuildingRequest buildingRequest)
@@ -102,6 +109,8 @@ namespace SOP.Controllers
         }
 
         [Authorize("Admin")]
+        [AllowAnonymous]
+
         [HttpDelete]
         [Route("{Id}")]
         public async Task<IActionResult> DeleteByIdAsync([FromRoute] int Id)
@@ -128,13 +137,14 @@ namespace SOP.Controllers
             {
                 Id = building.Id,
                 BuildingName = building.BuildingName,
-                ZipCode = building.ZipCode,
+                ZipCode = building.Address.ZipCode,
             };
 
             if (building.Address != null)
             {
                 response.BuildingAddress = new BuildingAddressResponse
                 {
+                    Id = building.Address.Id,
                     ZipCode = building.Address.ZipCode,
                     City = building.Address.City,
                     Region = building.Address.Region,
@@ -150,7 +160,7 @@ namespace SOP.Controllers
             return new Building
             {
                 BuildingName = buildingRequest.BuildingName,
-                ZipCode = buildingRequest.ZipCode,
+                AddressId = buildingRequest.AddressId,
             };
         }
     }

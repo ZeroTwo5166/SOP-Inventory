@@ -17,6 +17,10 @@ namespace SOP.DTOs
 
         public string BuildingName { get; set; } = string.Empty;
 
+        // FK to Address
+        public int AddressId { get; set; }
+
+        // Optional: still expose ZipCode from Address
         public int ZipCode { get; set; }
 
         public RoomAddressResponse buildingAddress { get; set; }
@@ -24,6 +28,8 @@ namespace SOP.DTOs
 
     public class RoomAddressResponse
     {
+        public int Id { get; set; }  // Address PK
+
         public int ZipCode { get; set; }
 
         public string Region { get; set; } = string.Empty;

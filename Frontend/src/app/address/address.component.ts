@@ -148,13 +148,13 @@ export class AddressComponent implements OnInit {
 
   //* Disable delete button if there are items associated with the address
   public isDeleteDisabled(zipCode: number): boolean {
-    return this.items.some(item => item.room?.building?.zipCode === zipCode);
+    return this.items.some(item => item.room?.building?.AddressId === zipCode);
   }
 
   // Ask for confirmation before deleting address
   confirmDelete(zipCode: number): void {
 
-    if (this.items.some(item => item.room?.building?.zipCode === zipCode)) {
+    if (this.items.some(item => item.room?.building?.AddressId === zipCode)) {
       alert('Kan ikke slette adresse, da der er tilknyttede genstande.');
       return; // Stop the deletion process
     }

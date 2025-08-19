@@ -35,10 +35,10 @@ namespace SOP.Repositories
             return newAddress;
         }
 
-        public async Task<Address?> FindByIdAsync(int ZipCode)
+        public async Task<Address?> FindByIdAsync(int id)
         {
             return await _context.Address
-                .FirstOrDefaultAsync(x => x.ZipCode == ZipCode);
+                .FirstOrDefaultAsync(x => x.Id == id);
         }
 
         public async Task<Address> UpdateByIdAsync(int id, Address newAddress)
@@ -50,6 +50,8 @@ namespace SOP.Repositories
                 address.Region = newAddress.Region;
                 address.City = newAddress.City;
                 address.Road = newAddress.Road;
+                address.ZipCode = newAddress.ZipCode;
+
 
                 await _context.SaveChangesAsync();
 

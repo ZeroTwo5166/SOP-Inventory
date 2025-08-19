@@ -80,13 +80,15 @@ namespace SOP.DTOs
 
         public string BuildingName { get; set; } = string.Empty;
 
-        public int ZipCode { get; set; }
+        public int AddressId { get; set; }
 
         public ItemAddressResponse buildingAddress { get; set; }
     }
 
     public class ItemAddressResponse
     {
+        public int Id { get; set; } // Added Address Id
+
         public int ZipCode { get; set; }
 
         public string Region { get; set; } = string.Empty;

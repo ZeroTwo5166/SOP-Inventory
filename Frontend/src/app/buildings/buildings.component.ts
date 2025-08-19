@@ -24,7 +24,7 @@ export class BuildingComponent implements OnInit {
   addressZipCodes: Address[] = [];
   selectedBuilding: Building | null = null;
 
-  newBuilding: Building = { id: 0, buildingName: '', zipCode: 0 };
+  newBuilding: Building = { id: 0, buildingName: '', AddressId: 0 };
   zipCodes: number[] = [];
   items: Item[] = [];
 
@@ -114,7 +114,7 @@ export class BuildingComponent implements OnInit {
         building.buildingName
           .toLowerCase()
           .includes(this.searchBuildingTerm.toLowerCase()) ||
-        building.zipCode.toString().includes(this.searchBuildingTerm)
+        building.AddressId.toString().includes(this.searchBuildingTerm)
     );
   }
 
@@ -128,7 +128,7 @@ export class BuildingComponent implements OnInit {
     this.buildingService.create(this.newBuilding).subscribe(
       () => {
         this.getBuildings();
-        this.newBuilding = { id: 0, buildingName: '', zipCode: 0 };
+        this.newBuilding = { id: 0, buildingName: '', AddressId: 0 };
         this.showCreateForm = false;
       },
       (error) => {
