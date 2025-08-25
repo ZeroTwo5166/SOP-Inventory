@@ -155,13 +155,25 @@
 <router-outlet></router-outlet>
 
 <!-- Custom Modal for session extension -->
-<div class="custom-modal" *ngIf="showExtendModal">
+<!-- <div class="custom-modal" *ngIf="showExtendModal">
   <div class="custom-modal-content">
     <h2>Session Expired</h2>
     <p>Your session has expired. Would you like to extend your session?</p>
     <div class="modal-buttons">
       <button class="btn btn-primary" (click)="extendSession()">Yes</button>
       <button class="btn btn-secondary" (click)="logout()">No</button>
+    </div>
+  </div>
+</div> -->
+<div class="modal fade" id="sessionExpiredModal" #sessionExpiredModal tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header"><h5 class="modal-title">Session Expired</h5></div>
+      <div class="modal-body">Your session has expired. Would you like to extend your session?</div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-primary" (click)="onConfirmExtend()">Yes</button>
+        <button type="button" class="btn btn-secondary" (click)="onDeclineExtend()">No</button>
+      </div>
     </div>
   </div>
 </div>

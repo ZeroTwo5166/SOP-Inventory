@@ -36,7 +36,7 @@
             SecurityTokenDescriptor tokenDescriptor = new()
             {
                 Subject = new ClaimsIdentity(new[] { new Claim("Id", user.Id.ToString()) }),
-                Expires = DateTime.UtcNow.AddHours(1), // Token valid for 30 minutes
+                Expires = DateTime.UtcNow.AddSeconds(30), // Token valid for 30 minutes
                 SigningCredentials = new(new SymmetricSecurityKey(key), SecurityAlgorithms.HmacSha256Signature)
             };
 

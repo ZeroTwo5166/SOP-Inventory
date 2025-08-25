@@ -1,9 +1,19 @@
-import { Component, OnInit, OnDestroy } from '@angular/core';
+import {
+  Component,
+  OnInit,
+  OnDestroy,
+  AfterViewInit,
+  ElementRef,
+  ViewChild,
+} from '@angular/core';
 import { Router, RouterModule } from '@angular/router';
-import { AuthService } from '../services/auth.service';
 import { CommonModule } from '@angular/common';
-import { Subscription } from 'rxjs';
+import { Subscription, timer } from 'rxjs';
+import { finalize } from 'rxjs/operators';
+import { AuthService } from '../services/auth.service';
 import { ThemeService } from '../core/services/theme.service';
+
+declare const bootstrap: any; // Bootstrap JS runtime
 
 @Component({
   selector: 'app-navbar',
@@ -12,50 +22,122 @@ import { ThemeService } from '../core/services/theme.service';
   standalone: true,
   imports: [CommonModule, RouterModule],
 })
-export class NavbarComponent implements OnInit, OnDestroy {
+export class NavbarComponent implements OnInit, AfterViewInit, OnDestroy {
   currentUser: any;
-  showExtendModal: boolean = false;
+
+  // --- Modal reference ---
+  @ViewChild('sessionExpiredModal', { static: true }) modalEl!: ElementRef;
+  private modal?: any;
+
+  // --- Timers & subs ---
   private sessionTimer: any;
-  private authSub!: Subscription;
+  private authSub?: Subscription;
 
-  constructor(public authService: AuthService, private router: Router, public theme: ThemeService) { }
+  constructor(
+    public authService: AuthService,
+    private router: Router,
+    public theme: ThemeService
+  ) {}
 
-  toggleTheme(){
+  // THEME
+  toggleTheme() {
     this.theme.toggle();
   }
-
   get isDark() {
     return this.theme.theme === 'dark';
   }
-   get logoPath(): string {
+  get logoPath(): string {
     return this.theme.theme === 'dark'
       ? 'assets/logo white.png'
       : 'assets/logo black.png';
   }
 
+  // LIFECYCLE
   ngOnInit(): void {
     this.currentUser = JSON.parse(localStorage.getItem('currentUser') as string);
     this.setSessionTimer();
 
-    // Reset timer whenever the currentUser value changes (e.g., after extending token).
+    // Reset timer whenever token/user changes (e.g., after extendToken)
     this.authSub = this.authService.currentUser.subscribe(() => {
-      this.clearSessionTimer();
-      this.setSessionTimer();
+      this.currentUser = JSON.parse(localStorage.getItem('currentUser') as string);
+      this.resetSessionTimer();
     });
   }
 
-  // Set a timer based on the remaining token validity time.
+  ngAfterViewInit(): void {
+    // Create Bootstrap modal instance
+    this.modal = new bootstrap.Modal(this.modalEl.nativeElement, {
+      backdrop: 'static',
+      keyboard: false,
+    });
+  }
+
+  ngOnDestroy(): void {
+    this.clearSessionTimer();
+    this.authSub?.unsubscribe();
+  }
+
+  // NAV
+  goToInventory() {
+    this.router.navigate(['/inventory']);
+  }
+
+  // LOGOUT (manual button)
+  logout(): void {
+    if (confirm('Vil du gerne logge ud?')) {
+      this.authService.logout();
+      this.router.navigate(['/login']);
+    }
+  }
+
+  // ===== Session modal actions =====
+  onConfirmExtend(): void {
+    // User clicked "Yes"
+    this.authService
+      .extendToken()
+      .pipe(
+        finalize(() => {
+          // Hide modal either way; if request fails we logout below
+          this.hideModal();
+        })
+      )
+      .subscribe({
+        next: () => {
+          // Successfully extended -> reschedule timer
+          this.resetSessionTimer();
+        },
+        error: () => {
+          // Extend failed -> log out
+          this.authService.logout();
+          this.router.navigate(['/login']);
+        },
+      });
+  }
+
+  onDeclineExtend(): void {
+    // User clicked "No"
+    this.hideModal();
+    this.authService.logout();
+    this.router.navigate(['/login']);
+  }
+
+  private showModal(): void {
+    if (this.modal) this.modal.show();
+  }
+  private hideModal(): void {
+    if (this.modal) this.modal.hide();
+  }
+
+  // ===== Session timer logic (stays in Navbar) =====
   private setSessionTimer(): void {
     const remaining = this.authService.getRemainingTokenTime();
-    if (remaining > 10000) {
-      this.sessionTimer = setTimeout(() => {
-        this.showExtendModal = true;
-      }, remaining);
-    } else {
-      this.sessionTimer = setTimeout(() => {
-        this.showExtendModal = true;
-      }, 10000);
-    }
+
+    // Show modal when token expires; if already near expiry, give a small grace window (10s)
+    const delay = remaining > 10000 ? remaining : 10000;
+
+    this.sessionTimer = setTimeout(() => {
+      this.showModal();
+    }, delay);
   }
 
   private clearSessionTimer(): void {
@@ -65,41 +147,8 @@ export class NavbarComponent implements OnInit, OnDestroy {
     }
   }
 
-  // Called when the user confirms to extend the session.
-  extendSession(): void {
-    console.log('[extendSession] Extending session...');
-    this.authService.extendToken().subscribe({
-      next: (response: any) => {
-        // alert('Session extended successfully!');
-        this.showExtendModal = false; // explicitly close the modal on success
-        this.setSessionTimer();
-        // Update currentUser from local storage.
-        this.currentUser = JSON.parse(localStorage.getItem('currentUser') as string);
-      },
-      error: (error: any) => {
-        alert('Fejl ved at fornye din session: ' + error.error);
-        this.showExtendModal = false; // explicitly close the modal on error
-        this.authService.logout();
-        this.router.navigate(['/login']);
-      }
-    });
-  }
-
-  // Called when the user clicks logout manually.
-  logout(): void {
-    if (confirm('Vil du gerne logge ud?')) {
-      this.authService.logout();
-      this.router.navigate(['/login']);
-    }
-  }
-  goToInventory() {
-    this.router.navigate(['/inventory']);
-  }
-
-  ngOnDestroy(): void {
+  private resetSessionTimer(): void {
     this.clearSessionTimer();
-    if (this.authSub) {
-      this.authSub.unsubscribe();
-    }
+    this.setSessionTimer();
   }
 }
