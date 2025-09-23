@@ -1,8 +1,8 @@
 import { Address } from './address';
 
 export interface Building {
-  id: number;
+  id?: number;
   buildingName: string;
-  zipCode: number;
+  addressId: number;
   buildingAddress?: Address;
 }

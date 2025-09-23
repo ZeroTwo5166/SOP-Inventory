@@ -24,8 +24,8 @@ export class BuildingComponent implements OnInit {
   addressZipCodes: Address[] = [];
   selectedBuilding: Building | null = null;
 
-  newBuilding: Building = { id: 0, buildingName: '', zipCode: 0 };
-  zipCodes: number[] = [];
+  newBuilding: Building = { buildingName: '', addressId: 0 };
+  addressList: Address[] = [];
   items: Item[] = [];
 
   searchBuildingTerm: string = '';
@@ -65,7 +65,7 @@ export class BuildingComponent implements OnInit {
       localStorage.getItem('currentUser') as string
     );
     this.getBuildings();
-    this.getZipCodes();
+    this.getAddresses();
     this.getAllItems();
   }
 
@@ -83,15 +83,12 @@ export class BuildingComponent implements OnInit {
   }
 
   // Method to get all zip codes
-  getZipCodes(): void {
+  getAddresses(): void {
     this.addressService.getAll().subscribe(
       (addresses) => {
-        this.addressZipCodes = addresses;
-        this.zipCodes = addresses.map((address) => address.zipCode);
+        this.addressList = addresses;   // each address has id + zipCode
       },
-      (error) => {
-        this.handleError(error);
-      }
+      (error) => this.handleError(error)
     );
   }
 
@@ -111,11 +108,11 @@ export class BuildingComponent implements OnInit {
   filterBuildings(): void {
     this.filteredBuildings = this.buildings.filter(
       (building) =>
-        building.buildingName
-          .toLowerCase()
-          .includes(this.searchBuildingTerm.toLowerCase()) ||
-        building.zipCode.toString().includes(this.searchBuildingTerm)
+        building.buildingName?.toLowerCase().includes(this.searchBuildingTerm.toLowerCase()) ||
+        building.addressId?.toString().includes(this.searchBuildingTerm) ||
+        building.buildingAddress?.zipCode?.toString().includes(this.searchBuildingTerm)
     );
+
   }
 
   // Method to select a building
@@ -125,17 +122,22 @@ export class BuildingComponent implements OnInit {
 
   // Method to create a building
   createBuilding(): void {
-    this.buildingService.create(this.newBuilding).subscribe(
+    const requestBody = {
+      buildingName: this.newBuilding.buildingName,
+      addressId: this.newBuilding.addressId    
+    };
+
+
+    this.buildingService.create(requestBody).subscribe(
       () => {
         this.getBuildings();
-        this.newBuilding = { id: 0, buildingName: '', zipCode: 0 };
+        this.newBuilding = { buildingName: '', addressId: 0 };
         this.showCreateForm = false;
       },
-      (error) => {
-        this.handleError(error);
-      }
+      (error) => this.handleError(error)
     );
   }
+
 
   // Method to update a building
   updateBuilding(): void {

@@ -51,8 +51,9 @@ export class ItemDetailsComponent implements OnInit {
       building: {
         id: 0,
         buildingName: '',
-        zipCode: 0,
+        addressId:0,
         buildingAddress: {
+          id:0,
           zipCode: 0,
           road: '',
           region: '',

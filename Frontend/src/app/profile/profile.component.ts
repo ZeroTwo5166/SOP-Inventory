@@ -26,6 +26,7 @@ export class ProfileComponent implements OnInit {
   confirmPassword: string = '';
   passwordMismatch: boolean = false;
   weakPassword: boolean = false;
+  showPasswordModal: boolean = false;
 
   // Image upload properties
   selectedImage: File | null = null;
@@ -278,7 +279,7 @@ export class ProfileComponent implements OnInit {
   }
 
 
-async saveChanges(): Promise<void> {
+  async saveChanges(): Promise<void> {
     if (this.isUploadingImage) {
       alert('Vent venligst på at billedet bliver uploadet...');
       return;
@@ -314,44 +315,51 @@ async saveChanges(): Promise<void> {
   }
 
 
-
   // Method to update the user. \\
   updateUser(user: User): void {
     user.roleId = Number(user.roleId);
-
-    if (user.password) {
-      if (this.passwordMismatch) {
-        console.log('Passwords do not match');
-        return;
+    this.userService.update(user).subscribe(
+      (updatedUser) => {
+        this.handleSuccessfulUpdate(updatedUser);
+      },
+      (error) => {
+        console.error('Error updating user without password', error);
+        this.handleError(error);
       }
+    );
+    
+  }
 
-      if (this.weakPassword) {
-        alert('Fejl: Adgangskoden er for svag. Den skal være mindst 12 tegn og indeholde store og små bogstaver, tal og specialtegn.');
-        return;
-      }
+  savePassword(): void {
+    if (this.passwordMismatch) {
+      alert('Passwords do not match.');
+      return;
+    }
 
-      this.userService.updatePassword(user).subscribe(
-        (updatedUser) => {
-          this.handleSuccessfulUpdate(updatedUser);
-        },
-        (error) => {
-          console.error('Error updating user with password', error);
-          this.handleError(error);
-        }
+    if (this.weakPassword) {
+      alert(
+        'Password must be at least 15 characters and include uppercase, lowercase, numbers, and special characters.'
       );
-    } else {
-      user.password = ''; // Clear the password field if not updating it
-      this.userService.update(user).subscribe(
+      return;
+    }
+
+    // Update the user password
+    if (this.user.password) {
+      this.userService.updatePassword(this.user).subscribe(
         (updatedUser) => {
-          this.handleSuccessfulUpdate(updatedUser);
+          alert('Password updated successfully!');
+          this.user.password = '';
+          this.confirmPassword = '';
+          this.showPasswordModal = false;
         },
         (error) => {
-          console.error('Error updating user without password', error);
+          console.error('Error updating password', error);
           this.handleError(error);
         }
       );
     }
   }
+
 
   // Helper method to handle successful updates
   private handleSuccessfulUpdate(updatedUser: User): void {

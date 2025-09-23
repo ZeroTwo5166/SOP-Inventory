@@ -112,6 +112,12 @@
                       </button>
                     </td>
                   </tr>
+
+                  <tr *ngIf="filteredItems.length === 0">
+                    <td colspan="7" class="text-center text-muted">
+                      Ingen genstande fundet.
+                    </td>
+                  </tr>
                 </tbody>
               </table>
             </div>

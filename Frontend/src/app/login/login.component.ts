@@ -18,7 +18,7 @@ export class LoginComponent implements OnInit {
   qrCodeUrl: string = '';
   otp: string = '';
   showOtpSection: boolean = false;
-
+  showOtpVerificationSection: boolean = false;
   
   loginError: string = '';
   otpError: string = '';
@@ -42,13 +42,25 @@ export class LoginComponent implements OnInit {
   }
 
   login() {
+      this.loginError = ''; // 👈 Clear previous error
+
     this.authService.login(this.email, this.password, this.role).subscribe({
       next: () => {
 
         this.authService.getQrCode(this.email).subscribe({
           next: (res) => {
-            this.qrCodeUrl = res.qrCodeImage;
-            this.showOtpSection = true;
+            if(res?.qrCodeImage){
+              this.qrCodeUrl = res.qrCodeImage;
+              this.showOtpSection = true;
+              console.log("IF")
+
+            } else {
+              this.showOtpSection = false;
+              this.showOtpVerificationSection = true;
+              console.log("ELSE")
+
+            }
+
           },
           error: (err) => {
             console.error('QR code fetch failed:', err);
@@ -68,10 +80,15 @@ export class LoginComponent implements OnInit {
   this.loginError = '';
   this.otpError = '';
   this.showOtpSection = false;
+  this.showOtpVerificationSection = false;
+
 }
 
 
   verifyOtp() {
+
+    this.otpError = '';
+
     this.authService.verifyOtp(this.email, this.otp).subscribe({
       next: (res) => {
         console.log(res);

@@ -92,3 +92,11 @@ nav {
 .theme-switch input:checked + .slider {
   background-color: var(--brand);
 }
+
+#logOutBtn {
+  cursor: pointer;
+}
+
+.navbar-nav.flex-nowrap {
+  flex-wrap: nowrap !important;
+}

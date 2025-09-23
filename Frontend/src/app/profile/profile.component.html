@@ -60,25 +60,7 @@
               <label for="email">Email:</label>
               <input type="email" class="form-control" id="email" [(ngModel)]="user.email" name="email" />
             </div>
-            <div class="form-group">
-              <label for="password">Kode:</label>
-              <input type="password" class="form-control" id="password" [(ngModel)]="user.password" name="password"
-                (input)="checkPasswords()" />
-            </div>
-            <div class="form-group">
-              <label for="confirmPassword">Bekræft Kode:</label>
-              <input type="password" class="form-control" id="confirmPassword" [(ngModel)]="confirmPassword"
-                name="confirmPassword" (input)="checkPasswords()" />
-              <div *ngIf="passwordMismatch" class="error">
-                Adgangskoderne matcher ikke.
-              </div>
-              <div *ngIf="weakPassword" class="error">
 
-                Adgangskoden skal være mindst 15 tegn og indeholde store og små
-                bogstaver, tal og specialtegn.
-
-              </div>
-            </div>
             <div class="form-group">
               <label for="twofactor_authentication">2 faktor login</label>
               <input type="text" class="form-control" id="twofactor_authentication" disabled
@@ -121,19 +103,71 @@
                 </tbody>
               </table>
             </div>
-            <button type="button" class="btn btn-primary" (click)="saveChanges()" [disabled]="isUploadingImage">
-              <span *ngIf="isUploadingImage">Uploader billede...</span>
-              <span *ngIf="!isUploadingImage">Gem Ændringer</span>
-            </button>
-            <button id="requestBtn" class="btn btn-primary" (click)="openRequestModal()">
-              Anmod Lån
-            </button>
+           <!-- Button Container -->
+            <div class="d-flex align-items-center justify-content-between mt-3 flex-wrap">
+              <!-- Left buttons -->
+              <div class="d-flex gap-2">
+                <button type="button" class="btn btn-primary" (click)="saveChanges()" [disabled]="isUploadingImage">
+                  <span *ngIf="isUploadingImage">Uploader billede...</span>
+                  <span *ngIf="!isUploadingImage">Gem Ændringer</span>
+                </button>
+
+                <button type="button" class="btn btn-warning" (click)="showPasswordModal = true">
+                  Change Password
+                </button>
+              </div>
+
+              <!-- Right button -->
+              <button id="requestBtn" class="btn btn-primary" (click)="openRequestModal()">
+                Anmod Lån
+              </button>
+            </div>
+
+
           </form>
         </div>
       </div>
     </div>
   </div>
 </div>
+
+<!-- Password Modal -->
+<div class="modal" *ngIf="showPasswordModal">
+  <div class="modal-content">
+    <span class="close" (click)="showPasswordModal = false">&times;</span>
+    <h3>Change Password</h3>
+    <form>
+      <div class="form-group">
+        <label for="password">New Password:</label>
+        <input type="password" class="form-control" id="password" [(ngModel)]="user.password" name="password" (input)="checkPasswords()" />
+      </div>
+
+      <div class="form-group">
+        <label for="confirmPassword">Confirm Password:</label>
+        <input type="password" class="form-control" id="confirmPassword" [(ngModel)]="confirmPassword" name="confirmPassword" (input)="checkPasswords()" />
+      </div>
+
+      <div *ngIf="passwordMismatch" class="text-danger mt-2">
+        Passwords do not match.
+      </div>
+      <div *ngIf="weakPassword" class="text-danger mt-2">
+        Password must be at least 15 characters and include uppercase, lowercase, numbers, and special characters.
+      </div>
+
+      <div class="mt-3 d-flex justify-content-end gap-2">
+        <button type="button" class="btn btn-primary" 
+                (click)="savePassword()" 
+                [disabled]="passwordMismatch || weakPassword">
+          Confirm
+        </button>
+        <button type="button" class="btn btn-secondary" (click)="showPasswordModal = false">
+          Cancel
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+
 
 <!-- This is the div for the request modal. -->
 <div class="modal" *ngIf="showRequestModal">

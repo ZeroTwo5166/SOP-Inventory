@@ -175,7 +175,7 @@ namespace SOP.Controllers
                     response.Room.Building = new ItemBuildingResponse
                     {
                         Id = item.Room.Building.Id,
-                        ZipCode = item.Room.Building.ZipCode,
+                        AddressId = item.Room.Building.AddressId,
                         BuildingName = item.Room.Building.BuildingName,
                     };
 
@@ -183,6 +183,7 @@ namespace SOP.Controllers
                     {
                         response.Room.Building.buildingAddress = new ItemAddressResponse
                         {
+                            Id = item.Room.Building.Address.Id, // Added Address Id
                             ZipCode = item.Room.Building.Address.ZipCode,
                             Road = item.Room.Building.Address.Road,
                             Region = item.Room.Building.Address.Region,

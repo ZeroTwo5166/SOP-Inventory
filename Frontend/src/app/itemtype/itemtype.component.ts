@@ -55,7 +55,10 @@ export class ItemtypeComponent {
 
 
   onSubmit(): void {
-    this.createItemType();
+    if(this.newItemType.typeName){
+      this.createItemType();
+
+    }
   }
 
   // Method for getting all item types. \\

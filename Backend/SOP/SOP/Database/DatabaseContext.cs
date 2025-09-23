@@ -69,10 +69,10 @@ namespace SOP.Database
                 .HasForeignKey<Computer_ComputerPart>(ccp => ccp.ComputerPartId)
                 .OnDelete(DeleteBehavior.Cascade);
 
-            // Configure Address ZipCode
+            // Configure Address Id as PK
             modelBuilder.Entity<Address>()
-                .Property(a => a.ZipCode)
-                .ValueGeneratedNever();
+                .Property(a => a.Id)
+                .ValueGeneratedOnAdd();
 
             // Configure Computer Id
             modelBuilder.Entity<Computer>()
@@ -146,17 +146,17 @@ namespace SOP.Database
 
             // Seed data for Address (from first file)
             modelBuilder.Entity<Address>().HasData(
-                new Address { ZipCode = 2750, City = "Ballerup", Region = "Sjælland", Road = "Telegrafvej 9" },
-                new Address { ZipCode = 2650, City = "Hvidovre", Region = "Sjælland", Road = "Stamholmen 193, 215" },
-                new Address { ZipCode = 2000, City = "Frederiksberg", Region = "Sjælland", Road = "Stæhr Johansens Vej 7" },
-                new Address { ZipCode = 2860, City = "Gladsaxe", Region = "Sjælland", Road = "Tobaksvejen 19" },
-                new Address { ZipCode = 2800, City = "Lyngby", Region = "Sjælland", Road = "Gyrithe Lemches Vej 14" }
+                new Address { Id = 1, ZipCode = 2750, City = "Ballerup", Region = "Sjælland", Road = "Telegrafvej 9" },
+                new Address { Id = 2, ZipCode = 2650, City = "Hvidovre", Region = "Sjælland", Road = "Stamholmen 193, 215" },
+                new Address { Id = 3, ZipCode = 2000, City = "Frederiksberg", Region = "Sjælland", Road = "Stæhr Johansens Vej 7" },
+                new Address { Id = 4, ZipCode = 2860, City = "Gladsaxe", Region = "Sjælland", Road = "Tobaksvejen 19" },
+                new Address { Id = 5, ZipCode = 2800, City = "Lyngby", Region = "Sjælland", Road = "Gyrithe Lemches Vej 14" }
             );
 
             // Seed data for Building (from first file)
             modelBuilder.Entity<Building>().HasData(
-                new Building { Id = 1, BuildingName = "A", ZipCode = 2000 },
-                new Building { Id = 2, BuildingName = "C", ZipCode = 2650 }
+                new Building { Id = 1, BuildingName = "A", AddressId = 3 },
+                new Building { Id = 2, BuildingName = "C", AddressId = 2 }
             );
 
             // Seed data for Room (from first file)

@@ -7,7 +7,9 @@ namespace SOP.Entities
     public class Address
     {
         [Key]
-        public int ZipCode { get; set; }
+        public int Id { get; set; }  // New primary key
+
+        public int ZipCode { get; set; }  // No longer the primary key
 
         [Column(TypeName = "nvarchar(255)")]
         public string Region { get; set; }

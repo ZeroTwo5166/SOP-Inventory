@@ -2,6 +2,9 @@
 {
     public class AddressRequest
     {
+
+        public int? Id { get; set; }   // Nullable → only needed for updates
+
         [Required]
         public int ZipCode { get; set; }
 

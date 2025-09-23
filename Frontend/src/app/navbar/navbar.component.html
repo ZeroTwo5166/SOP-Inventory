@@ -1,3 +1,4 @@
+
 <nav class="navbar navbar-expand-lg navbar-light">
   <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarNavDropdown"
     aria-controls="navbarNavDropdown" aria-expanded="false" aria-label="Toggle navigation">
@@ -8,12 +9,12 @@
       <a class="navbar-brand d-flex align-items-center" (click)="goToInventory()" style="cursor: pointer;">
     <img [src]="logoPath" alt="Logo" height="40" />
   </a>
-      <li class="nav-item">
+      <li class="nav-item mr-2">
         <a class="nav-link" routerLink="/profile">Profil</a>
       </li>
 
       <!-- Dropdown menu only for users. -->
-      <li class="nav-item dropdown">
+      <li class="nav-item dropdown mr-2">
         <!--Only accessable for users with RoleId 1 bcs that is admin-->
         <a class="nav-link dropdown-toggle" *ngIf="
             currentUser?.role?.id === 1 ||
@@ -35,7 +36,7 @@
       </li>
 
       <!-- Dropdown menu for Items. -->
-      <li class="nav-item dropdown">
+      <li class="nav-item dropdown mr-2">
         <a class="nav-link dropdown-toggle" *ngIf="
             currentUser?.role?.id === 1 ||
             currentUser?.role?.id === 4
@@ -68,7 +69,7 @@
       </li>
 
       <!-- Dropdown menu for Computers. -->
-      <li class="nav-item dropdown">
+      <li class="nav-item dropdown mr-2">
         <a class="nav-link dropdown-toggle" *ngIf="currentUser?.role?.id === 1 || currentUser?.role?.id === 2" href="#"
           id="navbarDropdownMenuLink" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
           Computer
@@ -89,7 +90,7 @@
       </li>
 
       <!-- Dropdown menu for Location. -->
-      <li class="nav-item dropdown">
+      <li class="nav-item dropdown mr-2">
         <a class="nav-link dropdown-toggle" *ngIf="currentUser?.role?.id === 1 || currentUser?.role?.id === 4" href="#"
           id="navbarDropdownMenuLink" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
           Lokation
@@ -107,7 +108,7 @@
       </li>
 
       <!-- Dropdown menu for Loans. -->
-      <li class="nav-item dropdown">
+      <li class="nav-item dropdown mr-2">
         <a class="nav-link dropdown-toggle" *ngIf="
             currentUser?.role?.id === 1 ||
             currentUser?.role?.id === 2 ||
@@ -135,13 +136,8 @@
       </li>
     </ul>
   </div>
-  <ul class="navbar-nav ms-auto align-items-center gap-3">
-  <li class="nav-item">
+ <div class="d-flex align-items-center gap-3">
     <a id="logOutBtn" class="nav-link px-3" (click)="logout()">Log Ud</a>
-  </li>
-
-  <li class="nav-item">
-    <!-- Theme toggle with sun/moon icon -->
     <label class="theme-switch mb-0" aria-label="Toggle color theme">
       <input type="checkbox" [checked]="isDark" (change)="toggleTheme()" />
       <span class="slider">
@@ -149,8 +145,7 @@
         <span class="icon" *ngIf="isDark">🌙</span>
       </span>
     </label>
-  </li>
-</ul>
+  </div>
 </nav>
 <router-outlet></router-outlet>
 
@@ -164,5 +159,4 @@
         <button type="button" class="btn btn-secondary" (click)="onDeclineExtend()">No</button>
       </div>
     </div>
-  </div>
-</div>
+    

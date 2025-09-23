@@ -184,7 +184,7 @@ export class InventoryComponent implements OnInit {
     const building = this.buildings.find((b) => b.id === room.buildingId);
     if (!building) return 'Adresse ikke fundet';
 
-    const address = this.addresses.find((a) => a.zipCode === building.zipCode);
+    const address = this.addresses.find((a) => a.zipCode === building.addressId); //TEST
     return address ? address.road : 'Adresse ikke fundet';
   }
 

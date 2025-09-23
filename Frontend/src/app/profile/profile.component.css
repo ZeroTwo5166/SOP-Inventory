@@ -20,6 +20,10 @@
   object-fit: cover; /* Ensures all images fill and crop without distortion */
 }
 
+/* Make cursor show "not-allowed" when hovering disabled inputs */
+input[disabled] {
+  cursor: not-allowed;
+}
 
 .card {
   margin-bottom: 20px;

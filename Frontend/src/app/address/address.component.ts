@@ -23,6 +23,7 @@ export class AddressComponent implements OnInit {
   selectedAddress: Address | null = null;
 
   newAddress: Address = {
+    id:0,
     zipCode: 0,
     region: '',
     city: '',
@@ -68,7 +69,7 @@ export class AddressComponent implements OnInit {
 
   // Load all addresses from the server
   loadAddresses(): void {
-    this.addressService.getAll().subscribe((data) => {
+    this.addressService.getAll().subscribe((data:any) => {
       this.addresses = data;
       this.filterAddresses();
     });
@@ -76,10 +77,10 @@ export class AddressComponent implements OnInit {
 
   getAllItems(): void {
     this.itemService.getAll().subscribe({
-      next: (items) => {
+      next: (items:any) => {
         this.items = items;
       },
-      error: (error) => {
+      error: (error:any) => {
         console.error('Error fetching items', error);
         this.handleError(error);
       },
@@ -114,6 +115,7 @@ export class AddressComponent implements OnInit {
       () => {
         this.loadAddresses();
         this.newAddress = {
+          id:0,
           zipCode: 0,
           region: '',
           city: '',
@@ -123,7 +125,7 @@ export class AddressComponent implements OnInit {
         this.showSuccessMessage = true;
         setTimeout(() => (this.showSuccessMessage = false), 3000);
       },
-      (error) => {
+      (error:any) => {
         this.handleError(error);
       }
     );
@@ -139,7 +141,7 @@ export class AddressComponent implements OnInit {
           this.showSuccessMessage = true;
           setTimeout(() => (this.showSuccessMessage = false), 3000);
         },
-        (error) => {
+        (error:any) => {
           this.handleError(error);
         }
       );
@@ -147,14 +149,14 @@ export class AddressComponent implements OnInit {
   }
 
   //* Disable delete button if there are items associated with the address
-  public isDeleteDisabled(zipCode: number): boolean {
-    return this.items.some(item => item.room?.building?.zipCode === zipCode);
+  public isDeleteDisabled(addressId: number): boolean {
+    return this.items.some(item => item.room?.building?.buildingAddress?.id === addressId);
   }
 
   // Ask for confirmation before deleting address
-  confirmDelete(zipCode: number): void {
+  confirmDelete(addressId: number): void {
 
-    if (this.items.some(item => item.room?.building?.zipCode === zipCode)) {
+    if (this.items.some(item => item.room?.building?.buildingAddress?.id === addressId)) {
       alert('Kan ikke slette adresse, da der er tilknyttede genstande.');
       return; // Stop the deletion process
     }
@@ -162,9 +164,9 @@ export class AddressComponent implements OnInit {
     const confirmed = confirm('Er du sikker på, at du vil slette denne adresse?');
     if (!confirmed) return;
 
-    this.addressService.delete(zipCode).subscribe({
+    this.addressService.delete(addressId).subscribe({
       next: () => this.loadAddresses(),
-      error: (error) => this.handleError(error)
+      error: (error:any) => this.handleError(error)
     });
   }
 

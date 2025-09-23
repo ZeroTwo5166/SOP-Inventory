@@ -136,7 +136,7 @@ export class ItemArchiveComponent implements OnInit {
     if (room) {
       const building = this.buildings.find((b) => b.id === room.buildingId);
       if (building) {
-        const address = this.addresses.find((a) => a.zipCode === building.zipCode);
+        const address = this.addresses.find((a) => a.zipCode === building.addressId); //TEST
         if (address) {
           return ` ${room.roomNumber}, ${building.buildingName}, ${address.road}`;
         } else {

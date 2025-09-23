@@ -15,6 +15,7 @@ namespace SOP.DTOs
 
     public class BuildingAddressResponse 
     {
+        public int Id { get; set; } // Added Address Id
         public int ZipCode { get; set; }
 
         public string Region { get; set; } = string.Empty;

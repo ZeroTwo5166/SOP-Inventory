@@ -81,6 +81,7 @@ namespace SOP.Controllers
         }
 
         [Authorize("Admin", "Instruktør", "Drift")]
+
         [HttpPut]
         [Route("{Id}")]
         public async Task<IActionResult> UpdateByIdAsync([FromRoute] int Id, [FromBody] AddressRequest addressRequest)
@@ -130,6 +131,7 @@ namespace SOP.Controllers
         {
             AddressResponse response = new AddressResponse
             {
+                Id = address.Id,
                 ZipCode = address.ZipCode,
                 Region = address.Region,
                 City = address.City,

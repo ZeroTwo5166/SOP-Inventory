@@ -42,6 +42,6 @@ export class AddressService {
   //* Method for updating an address. \\
   update(address: Address): Observable<Address> {
     return this.http.put<Address>(
-      this.apiUrl + '/' + address.zipCode, address);
+      this.apiUrl + '/' + address.id, address);
   }
 }

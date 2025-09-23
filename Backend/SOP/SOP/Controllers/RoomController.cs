@@ -136,7 +136,7 @@ namespace SOP.Controllers
                 {
                     Id = room.Building.Id,
                     BuildingName = room.Building.BuildingName,
-                    ZipCode = room.Building.ZipCode,
+                    AddressId = room.Building.AddressId,
                 };
 
                 if (room.Building.Address != null)

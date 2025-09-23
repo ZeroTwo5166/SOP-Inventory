@@ -25,16 +25,16 @@
           <tr *ngFor="let building of filteredBuildings">
             <td>{{ building.buildingName }}</td>
             <td>{{ building.buildingAddress?.road }}</td>
-            <td>{{ building.zipCode }}</td>
+            <td>{{ building.buildingAddress?.zipCode }}</td>
             <td>
               <button class="btn btn-primary btn-sm" (click)="selectBuilding(building); $event.stopPropagation()">
                 Rediger
               </button>
               <!--the span ? if true and : if false-->
-              <span [title]="isDeleteDisabled(building.id) ? 'I denne bygning er der genstande' : ''">
+              <span [title]="isDeleteDisabled(building.id!) ? 'I denne bygning er der genstande' : ''">
                 <button *ngIf="currentUser?.role?.id === 1" class="btn btn-danger btn-sm"
-                  [disabled]="isDeleteDisabled(building.id)"
-                  (click)="confirmDelete(building.id); $event.stopPropagation()">
+                  [disabled]="isDeleteDisabled(building.id!)"
+                  (click)="confirmDelete(building.id!); $event.stopPropagation()">
                   Slet
                 </button>
               </span>
@@ -44,7 +44,7 @@
       </table>
 
       <!-- this is for the add building form -->
-      <button class="btn btn-success" (click)="showCreateForm = !showCreateForm">
+      <button class="btn btn-success mb-4" (click)="showCreateForm = !showCreateForm">
         Opret
       </button>
       <div *ngIf="showCreateForm">
@@ -57,13 +57,13 @@
           </div>
           <div class="form-group">
             <label for="zipCode">Postnummer</label>
-            <select class="form-control" id="zipCode" [(ngModel)]="newBuilding.zipCode" name="zipCode" required>
-              <option *ngFor="let zip of zipCodes" [value]="zip">
-                {{ zip }}
+            <select class="form-control" id="zipCode" [(ngModel)]="newBuilding.addressId" name="zipCode" required>
+              <option *ngFor="let zip of addressList" [value]="zip.id">
+                {{ zip.zipCode }}
               </option>
             </select>
           </div>
-          <button type="submit" class="btn btn-success">Tilføj</button>
+          <button type="submit" class="btn btn-success mr-2">Tilføj</button>
           <button type="button" class="btn btn-secondary" (click)="cancelCreateForm()">
             Cancel
           </button>
@@ -82,9 +82,9 @@
         </div>
         <div class="form-group">
           <label for="zipCode">Postnummer</label>
-          <select class="form-control" id="zipCode" [(ngModel)]="selectedBuilding.zipCode" name="zipCode" required>
-            <option *ngFor="let zip of zipCodes" [value]="zip">
-              {{ zip }}
+          <select class="form-control" id="zipCode" [(ngModel)]="selectedBuilding.addressId" name="zipCode" required>
+            <option *ngFor="let zip of addressList" [value]="zip.id">
+              {{ zip.zipCode }}
             </option>
           </select>
         </div>

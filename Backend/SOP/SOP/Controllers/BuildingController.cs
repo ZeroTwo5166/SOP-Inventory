@@ -1,4 +1,5 @@
-﻿using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
 using SOP.DTOs;
 using SOP.Entities;
 using SOP.Repositories;
@@ -128,13 +129,14 @@ namespace SOP.Controllers
             {
                 Id = building.Id,
                 BuildingName = building.BuildingName,
-                ZipCode = building.ZipCode,
+                ZipCode = building.Address.ZipCode,
             };
 
             if (building.Address != null)
             {
                 response.BuildingAddress = new BuildingAddressResponse
                 {
+                    Id = building.Address.Id,
                     ZipCode = building.Address.ZipCode,
                     City = building.Address.City,
                     Region = building.Address.Region,
@@ -150,7 +152,7 @@ namespace SOP.Controllers
             return new Building
             {
                 BuildingName = buildingRequest.BuildingName,
-                ZipCode = buildingRequest.ZipCode,
+                AddressId = buildingRequest.AddressId,
             };
         }
     }
