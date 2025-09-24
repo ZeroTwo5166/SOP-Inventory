@@ -87,7 +87,7 @@ export class LoginComponent implements OnInit {
 
   verifyOtp() {
 
-    this.otpError = '';
+    this.otpError = ''; 
 
     this.authService.verifyOtp(this.email, this.otp).subscribe({
       next: (res) => {

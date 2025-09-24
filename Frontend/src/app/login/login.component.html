@@ -1,29 +1,30 @@
-<div class="container">
+<div class="container login">
   <div class="row justify-content-center">
     <div class="col-md-6">
       <div class="card mt-5">
         <div class="card-header">
+          <img src="/assets/tec-logo.png" alt="Logo" class="logo">
           <h3 class="text-center">Login</h3>
         </div>
         <div class="card-body">
           <form (ngSubmit)="login()" #loginForm="ngForm">
             <div class="form-group">
-              <label for="username">Email:</label>
-              <input type="text" id="username" name="username" [(ngModel)]="email" required class="form-control"
-                autocomplete="off" [disabled]="showOtpSection || showOtpVerificationSection">
+           
+              <input type="text" id="username"  placeholder="Email" name="username" [(ngModel)]="email" required class="form-control"
+                autocomplete="off" [disabled]="showOtpSection">
             </div>
             <div class="form-group">
-              <label for="password">Password:</label>
-              <input type="password" id="password" name="password" [(ngModel)]="password" required class="form-control"
-                autocomplete="new-password" [disabled]="showOtpSection || showOtpVerificationSection">
+              
+              <input type="password"  placeholder="Password" id="password" name="password" [(ngModel)]="password" required class="form-control"
+                autocomplete="new-password" [disabled]="showOtpSection">
             </div>
 
             <div class="form-group" *ngIf="loginError">
               <small class="text-danger">{{ loginError }}</small>
             </div>
 
-            <button type="submit" class="btn btn-primary btn-block" [disabled]="loginForm.invalid || showOtpSection">
-              Login
+            <button type="submit" class="button" [disabled]="loginForm.invalid || showOtpSection">
+              Log ind
             </button>
 
             <!-- OTP Section first time -->
@@ -78,3 +79,4 @@
     </div>
   </div>
 </div>
+

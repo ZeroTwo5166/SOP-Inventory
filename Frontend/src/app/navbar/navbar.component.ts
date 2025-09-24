@@ -147,38 +147,7 @@ export class NavbarComponent implements OnInit, AfterViewInit, OnDestroy {
     }
   }
 
-  // Called when the user confirms to extend the session.
-  extendSession(): void {
-    console.log('[extendSession] Extending session...');
-    this.authService.extendToken().subscribe({
-      next: (response: any) => {
-        // alert('Session extended successfully!');
-        this.showExtendModal = false; // explicitly close the modal on success
-        this.setSessionTimer();
-        // Update currentUser from local storage.
-        this.currentUser = JSON.parse(localStorage.getItem('currentUser') as string);
-      },
-      error: (error: any) => {
-        alert('Fejl ved at fornye din session: ' + error.error);
-        this.showExtendModal = false; // explicitly close the modal on error
-        this.authService.logout();
-        this.router.navigate(['/login']);
-      }
-    });
-  }
-
-  // Called when the user clicks logout manually.
-  logout(): void {
-    if (confirm('Vil du gerne logge ud?')) {
-      this.authService.logout();
-      this.router.navigate(['/login']);
-    }
-  }
-  goToInventory() {
-    this.router.navigate(['/inventory']);
-  }
-
-  ngOnDestroy(): void {
+  private resetSessionTimer(): void {
     this.clearSessionTimer();
     this.setSessionTimer();
   }
