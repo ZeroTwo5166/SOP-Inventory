@@ -4,23 +4,21 @@
   align-items: center;
   min-height: 100%;
   max-width: 100%;
-  background-color: #ffffff;
-  position: static;
-    inset: unset;
-    position: fixed;
-      background: linear-gradient(135deg, #f6f9ff 0%, #eef3f6 40%, #fafbff 100%);
-        background-image:
-    radial-gradient(circle at 30% 20%, rgba(255, 200, 200, 0.15), transparent 40%),
-    radial-gradient(circle at 80% 70%, rgba(200, 220, 255, 0.25), transparent 50%),
-    linear-gradient(135deg, #f6f9ff 0%, #eef3f6 40%, #fafbff 100%);
-
+  position: fixed;
+  inset: 0;
+  
+  background: linear-gradient(135deg, #e8ecf4 0%, #f1f5f9 50%, #f9fbff 100%);
+  background-image:
+    radial-gradient(circle at 30% 20%, rgba(255, 200, 200, 0.12), transparent 45%),
+    radial-gradient(circle at 80% 70%, rgba(200, 220, 255, 0.18), transparent 55%),
+    linear-gradient(135deg, #e8ecf4 0%, #f1f5f9 50%, #f9fbff 100%);
   background-repeat: no-repeat;
   background-attachment: fixed;
 }
 .container.login .row {
   width: 100%;
   margin-left:17% ;     
-    margin-top: -5%;            
+  margin-top: -5%;  
 
 }
 
@@ -29,7 +27,7 @@
   max-width: 440px;
   min-height: 410px;
 
-   border: 1px solid #e1e1e1;
+  border: 1px solid #e1e1e1;
    
   box-shadow: 0 2px 8px rgba(0,0,0,0.12),
               0 4px 16px rgba(0,0,0,0.08);
@@ -37,17 +35,24 @@
   display: flex;
   flex-direction: column;
   justify-content: flex-start; 
-  background-color: #fff;  /* override body bg */
-    border-radius: 15px;
+  border-radius: 15px;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+
 }
+
+.card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 8px 20px rgba(0,0,0,0.18);
+}
+
 .card-header{
 
    padding: 24px 28px 8px;
    border: none;
-  background: #fff;
+  background: transparent;
   align-items: center;
   text-align: center;
-       border-radius: 15px;
+  border-radius: 15px 15px 0 0;
 }
 .card-header p{
     font-size: 13px;
