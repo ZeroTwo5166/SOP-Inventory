@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using SOP.Archive.DTOs;
 using SOP.DTOs;
@@ -18,21 +19,28 @@ namespace SOP.Controllers
             _loanRepository = loanRepository;
         }
 
+        private static string? SafeDecrypt(string? v)
+        {
+            if (string.IsNullOrWhiteSpace(v)) return v;
+            try { return EncryptionHelper.Decrypt(v); } catch { return v; }
+        }
+
         [Authorize("Admin", "Instruktør", "Drift")]
         [HttpGet]
         public async Task<IActionResult> GetAllAsync()
         {
             try
             {
-                List<Loan> loan = await _loanRepository.GetAllAsync();
+                List<Loan> loans = await _loanRepository.GetAllAsync();
 
-                List<LoanResponse> roleResponses = loan.Select(
-                    loan => MapLoanToLoanResponse(loan)).ToList();
-                return Ok(roleResponses);
+                List<LoanResponse> responses = loans
+                    .Select(loan => MapLoanToLoanResponse(loan))
+                    .ToList();
+
+                return Ok(responses);
             }
             catch (Exception ex)
             {
-
                 return Problem(ex.Message);
             }
         }
@@ -43,9 +51,9 @@ namespace SOP.Controllers
         {
             try
             {
-                Loan newRole = MapLoanRequestToLoan(loanRequest);
+                Loan newLoan = MapLoanRequestToLoan(loanRequest);
 
-                var loan = await _loanRepository.CreateAsync(newRole);
+                var loan = await _loanRepository.CreateAsync(newLoan);
 
                 LoanResponse loanResponse = MapLoanToLoanResponse(loan);
 
@@ -58,8 +66,7 @@ namespace SOP.Controllers
         }
 
         [Authorize("Admin", "Instruktør", "Drift")]
-        [HttpGet]
-        [Route("{Id}")]
+        [HttpGet("{Id}")]
         public async Task<IActionResult> FindByIdAsync([FromRoute] int Id)
         {
             try
@@ -79,8 +86,7 @@ namespace SOP.Controllers
         }
 
         [Authorize("Admin", "Instruktør", "Drift")]
-        [HttpPut]
-        [Route("{Id}")]
+        [HttpPut("{Id}")]
         public async Task<IActionResult> UpdateByIdAsync([FromRoute] int Id, [FromBody] LoanRequest loanRequest)
         {
             try
@@ -102,32 +108,43 @@ namespace SOP.Controllers
             }
         }
 
+        // Archive (soft-delete) with conflict handling via ArchiveResult<>
         [Authorize("Admin", "Instruktør", "Drift")]
-        [HttpDelete]
-        [Route("{Id}")]
+        [HttpDelete("{Id}")]
         public async Task<IActionResult> ArchiveByIdAsync([FromRoute] int Id, [FromBody] ArchiveNoteRequest archiveNoteRequest)
         {
             try
             {
-                string archiveNote = archiveNoteRequest.ArchiveNote;
-                var loan = await _loanRepository.ArchiveByIdAsync(Id, archiveNote);
-                if (loan == null)
+                var encryptedNote = EncryptionHelper.Encrypt(archiveNoteRequest?.ArchiveNote ?? string.Empty);
+
+                var result = await _loanRepository.ArchiveByIdAsync(Id, encryptedNote);
+
+                switch (result.Status)
                 {
-                    return NotFound();
+                    case ArchiveStatus.NotFound:
+                        return NotFound();
+
+                    case ArchiveStatus.InUse:
+                        // Convention: InUse means loan cannot be archived due to business rule
+                        return Conflict(new { message = "Lånet er stadig aktivt og kan ikke arkiveres endnu." });
+
+                    case ArchiveStatus.Archived:
+                        var loan = result.Entity!;
+                        var response = new Archive_LoanResponse
+                        {
+                            Id = loan.Id,
+                            DeleteTime = loan.DeleteTime,
+                            LoanDate = loan.LoanDate,
+                            ReturnDate = loan.ReturnDate,
+                            ItemId = loan.ItemId,
+                            UserId = loan.UserId,
+                            ArchiveNote = SafeDecrypt(loan.ArchiveNote),
+                        };
+                        return Ok(response);
+
+                    default:
+                        return Problem("Ukendt arkiveringsstatus.");
                 }
-
-                Archive_LoanResponse loanResponse = new Archive_LoanResponse
-                {
-                    Id = loan.Id,
-                    DeleteTime = loan.DeleteTime,
-                    LoanDate = loan.LoanDate,
-                    ReturnDate = loan.ReturnDate,
-                    ItemId = loan.ItemId,
-                    UserId = loan.UserId,
-                    ArchiveNote = loan.ArchiveNote,
-                };
-
-                return Ok(loanResponse);
             }
             catch (Exception ex)
             {
@@ -151,7 +168,7 @@ namespace SOP.Controllers
                 response.LoanUser = new LoanUserResponse
                 {
                     Id = loan.User.Id,
-                    Email = EncryptionHelper.Decrypt(loan.User.Email),
+                    Email = SafeDecrypt(loan.User.Email),
                     Name = loan.User.Name,
                     TwoFactorAuthentication = loan.User.TwoFactorAuthentication,
                     RoleId = loan.User.RoleId,
@@ -165,7 +182,7 @@ namespace SOP.Controllers
                     Id = loan.Item.Id,
                     ItemGroupId = loan.Item.ItemGroupId,
                     RoomId = loan.Item.RoomId,
-                    SerialNumber = loan.Item.SerialNumber,
+                    SerialNumber = SafeDecrypt(loan.Item.SerialNumber),
                 };
             }
 

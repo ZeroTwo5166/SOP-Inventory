@@ -1,6 +1,10 @@
 ﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
 using SOP.Archive.DTOs;
+using SOP.DTOs;
+using SOP.Encryption;
 using SOP.Entities;
+using SOP.Repositories;
 
 namespace SOP.Controllers
 {
@@ -15,131 +19,122 @@ namespace SOP.Controllers
             _itemRepository = itemRepository;
         }
 
+        // Safe decrypt: if value isn't ciphertext yet, just return it as-is
+        private static string? SafeDecrypt(string? v)
+        {
+            if (string.IsNullOrWhiteSpace(v)) return v;
+            try { return EncryptionHelper.Decrypt(v); }
+            catch { return v; }
+        }
+
         [Authorize("Admin", "Instruktør", "Drift")]
         [HttpGet]
         public async Task<IActionResult> GetAllAsync()
         {
-            try
-            {
-                var items = await _itemRepository.GetAllAsync();
-
-                List<ItemResponse> itemResponses = items.Select(
-                    item => MapItemToItemResponse(item)).ToList();
-
-                return Ok(itemResponses);
-            }
-            catch (Exception ex)
-            {
-                return Problem(ex.Message);
-            }
+            var items = await _itemRepository.GetAllAsync();
+            var itemResponses = items.Select(MapItemToItemResponse).ToList();
+            return Ok(itemResponses);
         }
 
         [Authorize("Admin", "Instruktør", "Drift")]
         [HttpPost]
         public async Task<IActionResult> CreateAsync([FromBody] ItemRequest itemRequest)
         {
-            try
-            {
-                Item newItem = MapItemRequestToItem(itemRequest);
+            var newItem = MapItemRequestToItem(itemRequest);
 
-                var item = await _itemRepository.CreateAsync(newItem);
+            // Encrypt sensitive fields BEFORE save
+            newItem.SerialNumber = EncryptionHelper.Encrypt(newItem.SerialNumber);
 
-                ItemResponse itemResponse = MapItemToItemResponse(item);
+            var item = await _itemRepository.CreateAsync(newItem);
+            var itemResponse = MapItemToItemResponse(item);
 
-                return Ok(itemResponse);
-            }
-            catch (Exception ex)
-            {
-                return Problem(ex.Message);
-            }
+            return Ok(itemResponse);
         }
 
         [Authorize("Admin", "Instruktør", "Drift")]
-        [HttpGet]
-        [Route("{Id}")]
+        [HttpGet("{Id}")]
         public async Task<IActionResult> FindByIdAsync([FromRoute] int Id)
         {
-            try
-            {
-                var item = await _itemRepository.FindByIdAsync(Id);
-                if (item == null)
-                {
-                    return NotFound();
-                }
+            var item = await _itemRepository.FindByIdAsync(Id);
+            if (item == null) return NotFound();
 
-                return Ok(MapItemToItemResponse(item));
-            }
-            catch (Exception ex)
-            {
-                return Problem(ex.Message);
-            }
+            return Ok(MapItemToItemResponse(item));
         }
 
         [Authorize("Admin", "Instruktør", "Drift")]
-        [HttpPut]
-        [Route("{Id}")]
+        [HttpPut("{Id}")]
         public async Task<IActionResult> UpdateByIdAsync([FromRoute] int Id, [FromBody] ItemRequest itemRequest)
         {
-            try
-            {
-                var updateItem = MapItemRequestToItem(itemRequest);
+            var updateItem = MapItemRequestToItem(itemRequest);
 
-                var item = await _itemRepository.UpdateByIdAsync(Id, updateItem);
+            // Encrypt before saving
+            updateItem.SerialNumber = EncryptionHelper.Encrypt(updateItem.SerialNumber);
 
-                if (item == null)
-                {
-                    return NotFound();
-                }
+            var item = await _itemRepository.UpdateByIdAsync(Id, updateItem);
+            if (item == null) return NotFound();
 
-                return Ok(MapItemToItemResponse(item));
-            }
-            catch (Exception ex)
-            {
-                return Problem(ex.Message);
-            }
+            return Ok(MapItemToItemResponse(item));
         }
 
+        // Hard delete with guard from repository (409 if in use)
+        [Authorize("Admin")]
+        [HttpDelete("{Id}")]
+        public async Task<IActionResult> DeleteByIdAsync([FromRoute] int Id)
+        {
+            var result = await _itemRepository.DeleteByIdAsync(Id);
+
+            return result.Status switch
+            {
+                DeleteStatus.NotFound => NotFound(),
+                DeleteStatus.InUse => Conflict(new
+                {
+                    code = "ITEM_IN_USE",
+                    message = "Item has an active loan and cannot be deleted."
+                }),
+                DeleteStatus.Deleted => Ok(MapItemToItemResponse(result.Entity!))
+            };
+        }
+
+        // Archive with guard from repository (409 if in use)
         [Authorize("Admin", "Drift")]
-        [HttpDelete]
-        [Route("ArchiveById/{Id}")]
+        [HttpDelete("ArchiveById/{Id}")]
         public async Task<IActionResult> ArchiveByIdAsync([FromRoute] int Id, [FromBody] ArchiveNoteRequest archiveNoteRequest)
         {
-            try
-            {
-                string archiveNote = archiveNoteRequest.ArchiveNote;
-                var item = await _itemRepository.ArchiveByIdAsync(Id, archiveNote);
-                if (item == null)
-                {
-                    return NotFound();
-                }
+            // Encrypt archive note before persisting
+            var encryptedNote = EncryptionHelper.Encrypt(archiveNoteRequest.ArchiveNote);
 
-                Archive_ItemResponse response = new Archive_ItemResponse
-                {
-                    Id = item.Id,
-                    DeleteTime = item.DeleteTime,
-                    ItemGroupId = item.ItemGroupId,
-                    RoomId = item.RoomId,
-                    SerialNumber = item.SerialNumber,
-                    ArchiveNote = item.ArchiveNote,
-                };
+            var result = await _itemRepository.ArchiveByIdAsync(Id, encryptedNote);
 
-                return Ok(response);
-            }
-            catch (Exception ex)
+            return result.Status switch
             {
-                return Problem(ex.Message);
-            }
+                ArchiveStatus.NotFound => NotFound(),
+                ArchiveStatus.InUse => Conflict(new
+                {
+                    code = "ITEM_IN_USE",
+                    message = "Item has an active loan and cannot be archived."
+                }),
+                ArchiveStatus.Archived => Ok(new Archive_ItemResponse
+                {
+                    Id = result.Entity!.Id,
+                    DeleteTime = result.Entity.DeleteTime,
+                    ItemGroupId = result.Entity.ItemGroupId,
+                    RoomId = result.Entity.RoomId,
+                    SerialNumber = SafeDecrypt(result.Entity.SerialNumber),
+                    ArchiveNote = SafeDecrypt(result.Entity.ArchiveNote),
+                })
+            };
         }
 
         private ItemResponse MapItemToItemResponse(Item item)
         {
-            ItemResponse response = new ItemResponse
+            var response = new ItemResponse
             {
                 Id = item.Id,
                 RoomId = item.RoomId,
                 ItemGroupId = item.ItemGroupId,
-                SerialNumber = item.SerialNumber,
+                SerialNumber = SafeDecrypt(item.SerialNumber),
             };
+
             if (item.ItemGroup != null)
             {
                 response.ItemGroup = new ItemItemGroupResponse
@@ -161,6 +156,7 @@ namespace SOP.Controllers
                     };
                 }
             }
+
             if (item.Room != null)
             {
                 response.Room = new ItemRoomResponse
@@ -176,22 +172,23 @@ namespace SOP.Controllers
                     {
                         Id = item.Room.Building.Id,
                         AddressId = item.Room.Building.AddressId,
-                        BuildingName = item.Room.Building.BuildingName,
+                        BuildingName = SafeDecrypt(item.Room.Building.BuildingName),
                     };
 
                     if (item.Room.Building.Address != null)
                     {
                         response.Room.Building.buildingAddress = new ItemAddressResponse
                         {
-                            Id = item.Room.Building.Address.Id, // Added Address Id
+                            Id = item.Room.Building.Address.Id,
                             ZipCode = item.Room.Building.Address.ZipCode,
-                            Road = item.Room.Building.Address.Road,
-                            Region = item.Room.Building.Address.Region,
-                            City = item.Room.Building.Address.City,
+                            Road = SafeDecrypt(item.Room.Building.Address.Road),
+                            Region = SafeDecrypt(item.Room.Building.Address.Region),
+                            City = SafeDecrypt(item.Room.Building.Address.City),
                         };
                     }
                 }
             }
+
             if (item.StatusHistories != null)
             {
                 response.StatusHistories = item.StatusHistories.Select(statusHistory =>
@@ -215,6 +212,7 @@ namespace SOP.Controllers
                     return statusHistoryResponse;
                 }).ToList();
             }
+
             if (item.Loan != null)
             {
                 response.Loan = new ItemLoanResponse

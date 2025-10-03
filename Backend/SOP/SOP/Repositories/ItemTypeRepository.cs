@@ -1,4 +1,7 @@
-﻿using SOP.Archive.Entities;
+﻿using Microsoft.EntityFrameworkCore;
+using SOP.Archive.Entities;
+using SOP.Database;
+using SOP.Entities;
 
 namespace SOP.Repositories
 {
@@ -7,20 +10,18 @@ namespace SOP.Repositories
         Task<ItemType> CreateAsync(ItemType newItemType);
         Task<ItemType?> FindByIdAsync(int itemTypeId);
         Task<List<ItemType>> GetAllAsync();
-        Task<Archive_ItemType> ArchiveByIdAsync(int itemTypeId, string archiveNote);
+        Task<ArchiveResult<Archive_ItemType>> ArchiveByIdAsync(int itemTypeId, string archiveNote);
     }
 
     public class ItemTypeRepository : IItemTypeRepository
     {
         private readonly DatabaseContext _context;
 
-        // Initializes the repository with the database context for accessing data
         public ItemTypeRepository(DatabaseContext context)
         {
             _context = context;
         }
 
-        // Adds a new ItemType, saves changes, retrieves, and returns it
         public async Task<ItemType> CreateAsync(ItemType newItemType)
         {
             _context.ItemType.Add(newItemType);
@@ -29,54 +30,37 @@ namespace SOP.Repositories
             return newItemType;
         }
 
-        // Please refer to the class diagram or ER diagram for entity relationships
-        // Finds an ItemType by ID, including related entities and returns it
         public async Task<ItemType?> FindByIdAsync(int itemTypeId)
         {
             return await _context.ItemType.FindAsync(itemTypeId);
         }
 
-        // Please refer to the class diagram or ER diagram for entity relationships
-        // Retrieves all ItemTypes, including related entities and returns them
         public async Task<List<ItemType>> GetAllAsync()
         {
-            return await _context.ItemType
-                .ToListAsync();
+            return await _context.ItemType.ToListAsync();
         }
 
-        // Archive an ItemType by ID, including all associated itemGroups and items
-        public async Task<Archive_ItemType> ArchiveByIdAsync(int itemTypeId, string archiveNote)
+        /// <summary>
+        /// Archive an ItemType only if it's not in use.
+        /// "In use" = any ItemGroup exists with this ItemTypeId.
+        /// </summary>
+        public async Task<ArchiveResult<Archive_ItemType>> ArchiveByIdAsync(int itemTypeId, string archiveNote)
         {
-            ItemType itemType = await FindByIdAsync(itemTypeId);
-
+            var itemType = await FindByIdAsync(itemTypeId);
             if (itemType == null)
             {
-                return null;
+                return ArchiveResult<Archive_ItemType>.NotFound();
             }
 
-            // Fetch all ItemGroups associated with this ItemType
-            List<ItemGroup> itemGroupsToArchive = await _context.ItemGroup
-                .Where(ig => ig.ItemTypeId == itemTypeId)
-                .ToListAsync();
-
-            // Fetch all Items directly related to these ItemGroups
-            List<Item> itemsToArchive = await _context.Item
-                .Where(item => itemGroupsToArchive.Select(ig => ig.Id).Contains(item.ItemGroupId))
-                .ToListAsync();
-
-            // Archive each Item first
-            foreach (var item in itemsToArchive)
+            // In-use guard: if any ItemGroup references this type, block archiving
+            var hasGroups = await _context.ItemGroup.AnyAsync(ig => ig.ItemTypeId == itemTypeId);
+            if (hasGroups)
             {
-                await ArchiveItem(item, archiveNote);
+                // We can return null as the entity for InUse; the controller will map this to 409 Conflict
+                return ArchiveResult<Archive_ItemType>.InUse(null);
             }
 
-            // Archive each ItemGroup
-            foreach (var itemGroup in itemGroupsToArchive)
-            {
-                await ArchiveItemGroup(itemGroup, archiveNote);
-            }
-
-            Archive_ItemType archiveItemType = new Archive_ItemType
+            var archive = new Archive_ItemType
             {
                 Id = itemType.Id,
                 DeleteTime = DateTime.Now,
@@ -84,58 +68,11 @@ namespace SOP.Repositories
                 ArchiveNote = archiveNote,
             };
 
-            _context.Archive_ItemType.Add(archiveItemType);
+            _context.Archive_ItemType.Add(archive);
             _context.ItemType.Remove(itemType);
             await _context.SaveChangesAsync();
 
-            return archiveItemType;
-        }
-
-        private async Task ArchiveItemGroup(ItemGroup itemGroup, string archiveNote)
-        {
-            Archive_ItemGroup archiveItemGroup = new Archive_ItemGroup
-            {
-                Id = itemGroup.Id,
-                DeleteTime = DateTime.Now,
-                Quantity = itemGroup.Quantity,
-                Price = itemGroup.Price,
-                Manufacturer = itemGroup.Manufacturer,
-                ItemTypeId = itemGroup.ItemTypeId,
-                ModelName = itemGroup.ModelName,
-                WarrantyPeriod = itemGroup.WarrantyPeriod,
-                ArchiveNote = archiveNote,
-            };
-
-            _context.Archive_ItemGroup.Add(archiveItemGroup);
-            _context.ItemGroup.Remove(itemGroup);
-            await _context.SaveChangesAsync();
-        }
-
-        private async Task ArchiveItem(Item item, string archiveNote)
-        {
-            Archive_Item archiveItem = new Archive_Item
-            {
-                Id = item.Id,
-                DeleteTime = DateTime.Now,
-                ItemGroupId = item.ItemGroupId,
-                RoomId = item.RoomId,
-                SerialNumber = item.SerialNumber,
-                ArchiveNote = archiveNote,
-                StatusHistories = item.StatusHistories?.Select(statusHistory => new Archive_StatusHistory
-                {
-                    Id = statusHistory.Id,
-                    ItemId = item.Id,
-                    StatusId = statusHistory.StatusId,
-                    StatusUpdateDate = statusHistory.StatusUpdateDate,
-                    Note = statusHistory.Note,
-                    DeleteTime = DateTime.Now,
-                    ArchiveNote = archiveNote,
-                }).ToList()
-            };
-
-            _context.Archive_Item.Add(archiveItem);
-            _context.Item.Remove(item);
-            await _context.SaveChangesAsync();
+            return ArchiveResult<Archive_ItemType>.Archived(archive);
         }
     }
 }

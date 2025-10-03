@@ -10,7 +10,7 @@ namespace SOP.Repositories
         Task<Room> CreateAsync(Room room);
         Task<Room> FindByIdAsync(int id);
         Task<Room> UpdateByIdAsync(int id, Room room);
-        Task<Room> DeleteByIdAsync(int id);
+        Task<DeleteResult<Room>> DeleteByIdAsync(int id);
     }
     public class RoomRepository : IRoomRepository
     {
@@ -62,15 +62,39 @@ namespace SOP.Repositories
             return room;
         }
 
-        public async Task<Room> DeleteByIdAsync(int roomId)
+        //public async Task<Room> DeleteByIdAsync(int roomId)
+        //{
+        //    var room = await FindByIdAsync(roomId);
+        //    if (room != null)
+        //    {
+        //        _context.Room.Remove(room);
+        //        await _context.SaveChangesAsync();
+        //    }
+        //    return room;
+        //}
+
+        public async Task<DeleteResult<Room>> DeleteByIdAsync(int id)
         {
-            var room = await FindByIdAsync(roomId);
-            if (room != null)
+            // Load the entity (include bits for nicer error payloads if needed)
+            var room = await _context.Room
+                .Include(r => r.Building)
+                .FirstOrDefaultAsync(r => r.Id == id);
+
+            if (room is null)
             {
-                _context.Room.Remove(room);
-                await _context.SaveChangesAsync();
+                return DeleteResult<Room>.NotFound();
             }
-            return room;
+
+            // Guard: block delete if room still has items
+            var hasItems = await _context.Item.AnyAsync(i => i.RoomId == id);
+            if (hasItems)
+            {
+                return DeleteResult<Room>.InUse(room);
+            }
+
+            _context.Room.Remove(room);
+            await _context.SaveChangesAsync();
+            return DeleteResult<Room>.Deleted(room);
         }
     }
 }

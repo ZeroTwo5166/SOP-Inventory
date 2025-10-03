@@ -1,18 +1,18 @@
-﻿namespace SOP.Controllers
+﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
+using SOP.Entities;
+using SOP.Repositories;
+
+namespace SOP.Controllers
 {
-    //create the route for our angular to call
     [Route("api/[controller]")]
     [ApiController]
     public class PartTypeController : ControllerBase
     {
-        // Injecting the IRoomRepository interface and storing it in a private readonly variable
-        // This allows access to the room repository methods throughout the class
         private readonly IPartTypeRepository _partTypeRepository;
 
-        // Initializes the controller with the address repository
         public PartTypeController(IPartTypeRepository partTypeRepository)
         {
-            // Assigning the repository to the private variable
             _partTypeRepository = partTypeRepository;
         }
 
@@ -20,16 +20,13 @@
         [HttpGet]
         public async Task<IActionResult> GetAllAsync()
         {
-            //We use a try methode to get an answer if anything goes wrong,
-            //we can print a message and not let the user completle blind over the problem
             try
             {
-                //We are using the GetAllAsync methode from the Interface and set it into a var
                 var partTypes = await _partTypeRepository.GetAllAsync();
 
-                //We are selecting and mapping the statusHistories we got from the database and making it into a list of partType responses
-                List<PartTypeResponse> partTypeResponses = partTypes.Select(
-                    partType => MapPartTypeToPartTypeResponse(partType)).ToList();
+                var partTypeResponses = partTypes
+                    .Select(partType => MapPartTypeToPartTypeResponse(partType))
+                    .ToList();
 
                 return Ok(partTypeResponses);
             }
@@ -45,11 +42,11 @@
         {
             try
             {
-                PartType newPartType = MapPartTypeRequestToPartType(partTypeRequest);
+                var newPartType = MapPartTypeRequestToPartType(partTypeRequest);
 
                 var partType = await _partTypeRepository.CreateAsync(newPartType);
 
-                PartTypeResponse partTypeResponse = MapPartTypeToPartTypeResponse(partType);
+                var partTypeResponse = MapPartTypeToPartTypeResponse(partType);
 
                 return Ok(partTypeResponse);
             }
@@ -69,7 +66,7 @@
                 var partType = await _partTypeRepository.FindByIdAsync(partTypeId);
                 if (partType == null)
                 {
-                    return NotFound(); //Status Code 404
+                    return NotFound();
                 }
 
                 return Ok(MapPartTypeToPartTypeResponse(partType));
@@ -80,8 +77,7 @@
             }
         }
 
-        //[Authorize("Admin", "Instruktør")]
-        [AllowAnonymous]
+        [Authorize("Admin", "Instruktør")]
         [HttpPut]
         [Route("{partTypeId}")]
         public async Task<IActionResult> UpdateByIdAsync([FromRoute] int partTypeId, [FromBody] PartTypeRequest partTypeRequest)
@@ -94,19 +90,55 @@
 
                 if (partType == null)
                 {
-                    return NotFound(); //Status Code 404
+                    return NotFound();
                 }
 
                 return Ok(MapPartTypeToPartTypeResponse(partType));
             }
             catch (Exception ex)
             {
-
                 return Problem(ex.Message);
             }
         }
 
-        private PartTypeResponse MapPartTypeToPartTypeResponse(PartType partType)
+        // NEW: Guarded delete that maps repo result to 404/409/200
+        [Authorize("Admin")]
+        [HttpDelete]
+        [Route("{partTypeId}")]
+        public async Task<IActionResult> DeleteByIdAsync([FromRoute] int partTypeId)
+        {
+            try
+            {
+                var result = await _partTypeRepository.DeleteByIdAsync(partTypeId);
+
+                switch (result.Status)
+                {
+                    case DeleteStatus.NotFound:
+                        return NotFound();
+
+                    case DeleteStatus.InUse:
+                        return Conflict(new
+                        {
+                            message = "Cannot delete PartType because it is referenced by one or more PartGroups.",
+                            code = "IN_USE",
+                            blockedBy = new[] { "PartGroup" }
+                        });
+
+                    case DeleteStatus.Deleted:
+                        // Return the deleted entity details (optional)
+                        return Ok(MapPartTypeToPartTypeResponse(result.Entity!));
+
+                    default:
+                        return Problem("Unknown delete status.");
+                }
+            }
+            catch (Exception ex)
+            {
+                return Problem(ex.Message);
+            }
+        }
+
+        private static PartTypeResponse MapPartTypeToPartTypeResponse(PartType partType)
         {
             return new PartTypeResponse
             {
@@ -115,7 +147,7 @@
             };
         }
 
-        private PartType MapPartTypeRequestToPartType(PartTypeRequest partTypeRequest)
+        private static PartType MapPartTypeRequestToPartType(PartTypeRequest partTypeRequest)
         {
             return new PartType
             {

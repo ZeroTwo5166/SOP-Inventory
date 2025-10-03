@@ -10,6 +10,9 @@ namespace SOP.Repositories
         Task<PartGroup?> UpdateByIdAsync(int partGroupId, PartGroup updatePartGroup);
         Task<PartGroup?> FindByIdAsync(int partGroupId);
         Task<List<PartGroup>> GetAllAsync();
+
+        // new guarded delete
+        Task<DeleteResult<PartGroup>> DeleteByIdAsync(int partGroupId);
     }
     public class PartGroupRepository : IPartGroupRepository
     {
@@ -67,6 +70,29 @@ namespace SOP.Repositories
                 partGroup = await FindByIdAsync(partGroupId);
             }
             return partGroup;
+        }
+
+        public async Task<DeleteResult<PartGroup>> DeleteByIdAsync(int partGroupId)
+        {
+            var partGroup = await _context.PartGroup
+                .Include(pg => pg.PartType)
+                .FirstOrDefaultAsync(pg => pg.Id == partGroupId);
+
+            if (partGroup is null)
+            {
+                return DeleteResult<PartGroup>.NotFound();
+            }
+
+            // In-use check
+            var inUse = await _context.ComputerPart.AnyAsync(cp => cp.PartGroupId == partGroupId);
+            if (inUse)
+            {
+                return DeleteResult<PartGroup>.InUse(partGroup);
+            }
+
+            _context.PartGroup.Remove(partGroup);
+            await _context.SaveChangesAsync();
+            return DeleteResult<PartGroup>.Deleted(partGroup);
         }
     }
 }

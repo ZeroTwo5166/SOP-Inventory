@@ -1,18 +1,17 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Cors;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.IdentityModel.Tokens;
 using OtpNet;
 using QRCoder;
 using SOP.Archive.DTOs;
 using SOP.DTOs;
 using SOP.Encryption;
 using SOP.Entities;
+using SOP.Repositories; // ArchiveResult / DeleteResult
 using System.Globalization;
-using System.Net.Http.Headers;
-using System.Reflection.Metadata;
+using System.Text;
 using System.Text.Encodings.Web;
-using System.Text.Unicode;
-using static QRCoder.PayloadGenerator;
 
 namespace SOP.Controllers
 {
@@ -26,7 +25,6 @@ namespace SOP.Controllers
         private const string AuthenticatorUriFormat = "otpauth://totp/{0}:{1}?secret={2}&issuer={0}&digits=6";
         private readonly UrlEncoder _urlEncoder;
 
-        // Initializes the controller with the address repository
         public UserController(IUserRepository userRepository, IJwtUtils jwtUtils)
         {
             _userRepository = userRepository;
@@ -34,37 +32,39 @@ namespace SOP.Controllers
             _urlEncoder = UrlEncoder.Default;
         }
 
+        private static string? SafeDecrypt(string? v)
+        {
+            if (string.IsNullOrWhiteSpace(v)) return v;
+            try { return EncryptionHelper.Decrypt(v); }
+            catch { return v; }
+        }
+
         [Authorize("Admin", "Drift", "Instruktør")]
+        [AllowAnonymous]
         [HttpGet]
         public async Task<IActionResult> GetAllAsync()
         {
             try
             {
-                List<User> user = await _userRepository.GetAllAsync();
-
-                List<UserResponse> userResponses = user.Select(
-                    user => MapUserToUserResponse(user)).ToList();
-                return Ok(userResponses);
+                var users = await _userRepository.GetAllAsync();
+                var responses = users.Select(MapUserToUserResponse).ToList();
+                return Ok(responses);
             }
             catch (Exception ex)
             {
-
                 return Problem(ex.Message);
             }
         }
 
         [Authorize("Admin", "Instruktør", "Drift")]
-        [HttpGet]
-        [Route("GetAllStudents")]
+        [HttpGet("GetAllStudents")]
         public async Task<IActionResult> GetAllStudents()
         {
             try
             {
-                List<User> users = await _userRepository.GetUsersByRoleAsync(3);
-
-                List<UserResponse> userResponses = users.Select(user => MapUserToUserResponsePublic(user)).ToList();
-
-                return Ok(userResponses);
+                var users = await _userRepository.GetUsersByRoleAsync(3);
+                var responses = users.Select(MapUserToUserResponsePublic).ToList();
+                return Ok(responses);
             }
             catch (Exception ex)
             {
@@ -73,89 +73,58 @@ namespace SOP.Controllers
         }
 
         [AllowAnonymous]
-        [HttpGet]
-        [Route("2fa")]
+        [HttpGet("2fa")]
         public async Task<IActionResult> GetTwoFactorQrCode([FromQuery] string email)
         {
             try
             {
-
                 string encryptedEmail = EncryptionHelper.Encrypt(email);
-
                 var user = await _userRepository.GetByEmail(encryptedEmail);
-                if (user == null)
-                {
-                    return NotFound(); //Status Code 404
-                }
+                if (user == null) return NotFound();
 
                 string secretKey = user.TwoFactorSecretKey;
                 if (string.IsNullOrEmpty(secretKey))
                 {
-                    // Generate new 2FA secret key
                     var keyBytes = KeyGeneration.GenerateRandomKey(20);
                     secretKey = Base32Encoding.ToString(keyBytes);
-
                     user.TwoFactorSecretKey = secretKey;
-                    await _userRepository.UpdateByIdAsync(user.Id, user); // Save to DB
+                    await _userRepository.UpdateByIdAsync(user.Id, user);
                 }
 
-                // Step 2: Build QR code URI
                 string qrCodeUri = GenerateQrCodeUri(email, secretKey);
-
-                // Step 3: Convert URI to base64 image
                 string qrCodeBase64 = GenerateQrCodeBase64(qrCodeUri);
 
-                // Step 4: Return QR image and shared key (for manual entry fallback)
                 return Ok(new
                 {
-                    email = email,
+                    email,
                     sharedKey = FormatKey(secretKey),
                     qrCodeImage = qrCodeBase64
                 });
-
-
-
             }
             catch (Exception ex)
             {
                 return StatusCode(500, $"Internal server error: {ex.Message}");
-
             }
-
         }
 
         [AllowAnonymous]
-        [HttpPost]
-        [Route("2fa/verify")]
+        [HttpPost("2fa/verify")]
         public async Task<IActionResult> VerifyTwoFactorCode([FromBody] Verify2FaDto dto)
         {
             try
             {
                 string encryptedEmail = EncryptionHelper.Encrypt(dto.Email);
                 var user = await _userRepository.GetByEmail(encryptedEmail);
-                if (user == null)
-                {
-                    return NotFound("User not found");
-                }
-
-                if (string.IsNullOrEmpty(user.TwoFactorSecretKey))
-                {
-                    return BadRequest("2FA not configured for this user");
-                }
+                if (user == null) return NotFound("User not found");
+                if (string.IsNullOrEmpty(user.TwoFactorSecretKey)) return BadRequest("2FA not configured for this user");
 
                 var totp = new Totp(Base32Encoding.ToBytes(user.TwoFactorSecretKey));
-                bool isValid = totp.VerifyTotp(dto.Code, out long timeStepMatched, new VerificationWindow(2, 2));
+                bool isValid = totp.VerifyTotp(dto.Code, out _, new VerificationWindow(2, 2));
+                if (!isValid) return Unauthorized("Invalid 2FA code");
 
-                if (!isValid)
-                {
-                    return Unauthorized("Invalid 2FA code");
-                }
-
-                // Optional: Mark 2FA as completed/enabled
                 user.TwoFactorAuthentication = true;
                 await _userRepository.UpdateByIdAsync(user.Id, user);
 
-                //return Ok(new { success = true, message = "2FA verified successfully" });
                 return Ok(new
                 {
                     success = true,
@@ -165,85 +134,15 @@ namespace SOP.Controllers
                     {
                         id = user.Id,
                         name = user.Name,
-                        email = EncryptionHelper.Decrypt(user.Email),
+                        email = SafeDecrypt(user.Email),
                         roleId = user.RoleId,
                         twoFactorAuthentication = user.TwoFactorAuthentication
                     }
                 });
-
-
             }
             catch (Exception ex)
             {
                 return StatusCode(500, $"Internal server error: {ex.Message}");
-            }
-        }
-
-
-        private string FormatKey(string unformattedKey)
-        {
-            var result = new StringBuilder();
-            int currentPosition = 0;
-            while (currentPosition + 4 < unformattedKey.Length)
-            {
-                result.Append(unformattedKey.AsSpan(currentPosition, 4)).Append(' ');
-                currentPosition += 4;
-            }
-            if (currentPosition < unformattedKey.Length)
-            {
-                result.Append(unformattedKey.AsSpan(currentPosition));
-            }
-
-            return result.ToString().ToLowerInvariant();
-        }
-
-        private string GenerateQrCodeUri(string email, string unformattedKey)
-        {
-            return string.Format(
-                CultureInfo.InvariantCulture,
-                AuthenticatorUriFormat,
-                _urlEncoder.Encode("SOPInventar"),
-                _urlEncoder.Encode(email),
-                unformattedKey);
-        }
-
-        private string GenerateQrCodeBase64(string uri)
-        {
-            if (string.IsNullOrEmpty(uri))
-            {
-                return string.Empty; // Handle the null case
-            }
-
-            using var qrGenerator = new QRCodeGenerator();
-            using var qrCodeData = qrGenerator.CreateQrCode(uri, QRCodeGenerator.ECCLevel.Q);
-            using var qrCode = new PngByteQRCode(qrCodeData);
-            var qrCodeBytes = qrCode.GetGraphic(5);
-            return $"data:image/png;base64,{Convert.ToBase64String(qrCodeBytes)}";
-        }
-
-        //[Authorize("Admin", "Instruktør", "Drift","Elev")] --------
-        [AllowAnonymous]
-        [HttpGet]
-        [Route("GetUsersByRoleId/{Id}")]
-        public async Task<IActionResult> GetUsersByRole([FromRoute] int Id)
-        {
-            try
-            {
-                List<User> users = await _userRepository.GetUsersByRoleAsync(Id);
-
-                List<UserResponse> userResponses = users.Select(user => new UserResponse
-                {
-                    Id = user.Id,
-                    RoleId = user.RoleId,
-                    Email = EncryptionHelper.Decrypt(user.Email),
-                    Name = user.Name
-                }).ToList();
-
-                return Ok(userResponses);
-            }
-            catch (Exception ex)
-            {
-                return Problem(ex.Message);
             }
         }
 
@@ -254,8 +153,7 @@ namespace SOP.Controllers
             try
             {
                 string salt = BCrypt.Net.BCrypt.GenerateSalt(10);
-
-                User newUser = new User
+                var newUser = new User
                 {
                     Email = EncryptionHelper.Encrypt(userRequest.Email),
                     Name = userRequest.Name,
@@ -263,16 +161,11 @@ namespace SOP.Controllers
                     RoleId = userRequest.RoleId,
                     TwoFactorAuthentication = userRequest.TwoFactorAuthentication,
                     TwoFactorSecretKey = string.Empty,
-                    ProfileImageUrl = userRequest.ProfileImageUrl // ✅ Store Cloudinary image URL
-
+                    ProfileImageUrl = userRequest.ProfileImageUrl
                 };
 
-
                 var user = await _userRepository.CreateAsync(newUser);
-
-                UserResponse userResponse = MapUserToUserResponsePublic(user);
-
-                return Ok(userResponse);
+                return Ok(MapUserToUserResponsePublic(user));
             }
             catch (Exception ex)
             {
@@ -281,19 +174,13 @@ namespace SOP.Controllers
         }
 
         [Authorize("Admin", "Instruktør", "Drift", "Elev")]
-        [HttpGet]
-        [Route("{Id}")]
+        [HttpGet("{Id}")]
         public async Task<IActionResult> FindByIdAsync([FromRoute] int Id)
         {
             try
             {
                 var user = await _userRepository.FindByIdAsync(Id);
-
-                if (user == null)
-                {
-                    return NotFound(); //Status Code 404
-                }
-
+                if (user == null) return NotFound();
                 return Ok(MapUserToUserResponse(user));
             }
             catch (Exception ex)
@@ -303,8 +190,7 @@ namespace SOP.Controllers
         }
 
         [Authorize("Admin", "Instruktør", "Drift", "Elev")]
-        [HttpPut]
-        [Route("{Id}")]
+        [HttpPut("{Id}")]
         public async Task<IActionResult> UpdateByIdAsync([FromRoute] int Id, [FromBody] UserUpdateRequest userRequest)
         {
             try
@@ -312,10 +198,6 @@ namespace SOP.Controllers
                 var existingUser = await _userRepository.FindByIdAsync(Id);
                 if (existingUser == null) return NotFound();
 
-                Console.WriteLine($"Received ProfileImageUrl: {userRequest.ProfileImageUrl}");
-
-
-                // Update only if new value is provided, otherwise keep existing
                 existingUser.Email = string.IsNullOrEmpty(userRequest.Email)
                     ? existingUser.Email
                     : EncryptionHelper.Encrypt(userRequest.Email);
@@ -327,23 +209,14 @@ namespace SOP.Controllers
                 existingUser.RoleId = userRequest.RoleId ?? existingUser.RoleId;
                 existingUser.TwoFactorAuthentication = userRequest.TwoFactorAuthentication ?? existingUser.TwoFactorAuthentication;
 
-                // Handle ProfileImageUrl with special deletion value
                 if (userRequest.ProfileImageUrl == "DELETE_IMAGE")
-                {
                     existingUser.ProfileImageUrl = null;
-                }
                 else if (!string.IsNullOrEmpty(userRequest.ProfileImageUrl))
-                {
                     existingUser.ProfileImageUrl = userRequest.ProfileImageUrl;
-                }
-                // If ProfileImageUrl is null or empty (but not "DELETE_IMAGE"), keep existing value
 
                 var updatedUser = await _userRepository.UpdateByIdAsync(Id, existingUser);
-
                 if (updatedUser == null) return NotFound();
-
                 return Ok(MapUserToUserResponse(updatedUser));
-
             }
             catch (Exception ex)
             {
@@ -351,34 +224,20 @@ namespace SOP.Controllers
             }
         }
 
-
-
         [Authorize("Admin", "Instruktør", "Drift", "Elev")]
-        [HttpPut]
-        [Route("updatePassword/{Id}")]
+        [HttpPut("updatePassword/{Id}")]
         public async Task<IActionResult> UpdatePasswordByIdAsync([FromRoute] int Id, [FromBody] UserRequest userRequest)
         {
             try
             {
                 string salt = BCrypt.Net.BCrypt.GenerateSalt(10);
-
-                User updateUserdPassword = new User
+                var onlyPwd = new User
                 {
-                    // https://github.com/BcryptNet/bcrypt.net/issues/15
-                    // The 3rd parameter is enhanced entropy which runs the password through SHA384 before using BCrypt hashing. Very secure!!!
-                    // Double encryption!!
-                    // Hashes the password from the request
                     Password = BCrypt.Net.BCrypt.HashPassword(userRequest.Password, salt, true, BCrypt.Net.HashType.SHA512),
                 };
 
-
-                var user = await _userRepository.UpdatePasswordByIdAsync(Id, updateUserdPassword);
-
-                if (user == null)
-                {
-                    return NotFound();
-                }
-
+                var user = await _userRepository.UpdatePasswordByIdAsync(Id, onlyPwd);
+                if (user == null) return NotFound();
                 return Ok(MapUserToUserResponse(user));
             }
             catch (Exception ex)
@@ -387,33 +246,37 @@ namespace SOP.Controllers
             }
         }
 
+        // Guarded archive: 200 when archived, 404 if not found, 409 if user has an active loan
         [Authorize("Admin", "Instruktør", "Drift")]
-        [HttpDelete]
-        [Route("ArchiveById/{Id}")]
+        [HttpDelete("ArchiveById/{Id}")]
         public async Task<IActionResult> ArchiveByIdAsync([FromRoute] int Id, [FromBody] ArchiveNoteRequest archiveNoteRequest)
         {
             try
             {
-                string archiveNote = archiveNoteRequest.ArchiveNote;
-                var user = await _userRepository.ArchiveByIdAsync(Id, archiveNote);
-                if (user == null)
-                {
-                    return NotFound();
-                }
+                var encryptedNote = EncryptionHelper.Encrypt(archiveNoteRequest.ArchiveNote);
+                var result = await _userRepository.ArchiveByIdAsync(Id, encryptedNote);
 
-                Archive_UserResponse response = new Archive_UserResponse
+                return result.Status switch
                 {
-                    Id = user.Id,
-                    DeleteTime = user.DeleteTime,
-                    Email = EncryptionHelper.Decrypt(user.Email),
-                    Name = user.Name,
-                    Password = user.Password,
-                    RoleId = user.RoleId,
-                    TwoFactorAuthentication = user.TwoFactorAuthentication,
-                    ArchiveNote = user.ArchiveNote,
+                    ArchiveStatus.NotFound => NotFound(),
+                    ArchiveStatus.InUse => Conflict(new
+                    {
+                        code = "USER_IN_USE",
+                        message = "User has an active loan and cannot be archived."
+                    }),
+                    ArchiveStatus.Archived => Ok(new Archive_UserResponse
+                    {
+                        Id = result.Entity!.Id,
+                        DeleteTime = result.Entity.DeleteTime,
+                        Email = SafeDecrypt(result.Entity.Email),
+                        Name = result.Entity.Name,
+                        Password = result.Entity.Password,
+                        RoleId = result.Entity.RoleId,
+                        TwoFactorAuthentication = result.Entity.TwoFactorAuthentication,
+                        ArchiveNote = SafeDecrypt(result.Entity.ArchiveNote),
+                    }),
+                    _ => Problem("Unknown archive result.")
                 };
-
-                return Ok(response);
             }
             catch (Exception ex)
             {
@@ -422,39 +285,25 @@ namespace SOP.Controllers
         }
 
         [AllowAnonymous]
-        [HttpPost]
-        [Route("authenticate")]
+        [HttpPost("authenticate")]
         public async Task<IActionResult> SignInAsync([FromBody] SignInRequest login)
         {
             try
             {
-                // Encrypt the email before searching!
                 string encryptedEmail = EncryptionHelper.Encrypt(login.Email);
+                var user = await _userRepository.GetByEmail(encryptedEmail);
+                if (user == null) return Unauthorized();
 
-                User user = await _userRepository.GetByEmail(encryptedEmail);
-                if (user == null)
+                bool ok = BCrypt.Net.BCrypt.Verify(login.Password, user.Password, true, BCrypt.Net.HashType.SHA512);
+                if (!ok) return Unauthorized();
+
+                var resp = new SignInResponse
                 {
-                    return Unauthorized();
-                }
-
-                // BCrypt verification
-                bool PasswordCheck = BCrypt.Net.BCrypt.Verify(login.Password, user.Password, true, BCrypt.Net.HashType.SHA512);
-
-                if (PasswordCheck)
-                {
-                    SignInResponse SignInResponse = new()
-                    {
-                        Id = user.Id,
-                        Token = _jwtUtils.GenerateJwtToken(user)
-                    };
-                    if (user.Role != null)
-                    {
-                        SignInResponse.Role = user.Role;
-                    }
-                    return Ok(SignInResponse);
-                }
-
-                return Unauthorized();
+                    Id = user.Id,
+                    Token = _jwtUtils.GenerateJwtToken(user),
+                    Role = user.Role
+                };
+                return Ok(resp);
             }
             catch (Exception ex)
             {
@@ -464,69 +313,65 @@ namespace SOP.Controllers
 
         private static UserResponse MapUserToUserResponse(User user)
         {
-            UserResponse response = new UserResponse
+            var response = new UserResponse
             {
                 Id = user.Id,
                 RoleId = user.RoleId,
-                Email = EncryptionHelper.Decrypt(user.Email),
+                Email = SafeDecrypt(user.Email),
                 Name = user.Name,
                 Password = user.Password,
                 TwoFactorAuthentication = user.TwoFactorAuthentication,
-                ProfileImageUrl = user.ProfileImageUrl,
-                UserRole = new UserRoleResponse
+                ProfileImageUrl = user.ProfileImageUrl
+            };
+
+            if (user.Role != null)
+            {
+                response.UserRole = new UserRoleResponse
                 {
                     Id = user.Role.Id,
                     Description = user.Role.Description,
                     Name = user.Role.Name,
-                },
-                UserLoans = user.Loans.Select(loan => new UserLoanResponse
+                };
+            }
+
+            if (user.Loans != null)
+            {
+                response.UserLoans = user.Loans.Select(loan => new UserLoanResponse
                 {
                     Id = loan.Id,
                     ItemId = loan.ItemId,
                     LoanDate = loan.LoanDate,
                     ReturnDate = loan.ReturnDate,
-                    UserLoanItem = new UserLoanItemResponse
+                    UserLoanItem = loan.Item == null ? null : new UserLoanItemResponse
                     {
                         Id = loan.Item.Id,
                         ItemGroupId = loan.Item.ItemGroupId,
                         RoomId = loan.Item.RoomId,
-                        SerialNumber = loan.Item.SerialNumber,
-                        UserLoanItemItemGroup = new UserLoanItemItemGroupResponse
+                        SerialNumber = SafeDecrypt(loan.Item.SerialNumber),
+                        UserLoanItemItemGroup = loan.Item.ItemGroup == null ? null : new UserLoanItemItemGroupResponse
                         {
                             Id = loan.Item.ItemGroup.Id,
                             ItemTypeId = loan.Item.ItemGroup.ItemTypeId,
-                            Manufacturer = loan.Item.ItemGroup.Manufacturer,
-                            ModelName = loan.Item.ItemGroup.ModelName,
+                            Manufacturer = SafeDecrypt(loan.Item.ItemGroup.Manufacturer),
+                            ModelName = SafeDecrypt(loan.Item.ItemGroup.ModelName),
                             Price = loan.Item.ItemGroup.Price,
                             Quantity = loan.Item.ItemGroup.Quantity,
-                            WarrantyPeriod = loan.Item.ItemGroup.WarrantyPeriod
+                            WarrantyPeriod = SafeDecrypt(loan.Item.ItemGroup.WarrantyPeriod)
                         }
                     }
-                }).ToList()
-            };
+                }).ToList();
+            }
+
             return response;
-        }
-
-
-        private static User MapUserRequestToUser(UserRequest userRequest)
-        {
-            return new User
-            {
-                RoleId = userRequest.RoleId,
-                Email = userRequest.Email,
-                Name = userRequest.Name,
-                Password = userRequest.Password,
-                TwoFactorAuthentication = userRequest.TwoFactorAuthentication,
-            };
         }
 
         public static UserResponse MapUserToUserResponsePublic(User user)
         {
-            UserResponse response = new UserResponse
+            var response = new UserResponse
             {
                 Id = user.Id,
                 RoleId = user.RoleId,
-                Email = EncryptionHelper.Decrypt(user.Email),
+                Email = SafeDecrypt(user.Email),
                 Name = user.Name,
                 Password = user.Password,
                 ProfileImageUrl = user.ProfileImageUrl,
@@ -543,25 +388,57 @@ namespace SOP.Controllers
                 };
             }
 
-            // Er ikke helt sikker på det her. Skal den navigere hele vejen igennem ItemGroup?
             if (user.Loans != null)
             {
-                response.UserLoans = user.Loans.Select(LoanItems => new UserLoanResponse
+                response.UserLoans = user.Loans.Select(l => new UserLoanResponse
                 {
-                    Id = LoanItems.Id,
-                    ItemId = LoanItems.ItemId,
-                    LoanDate = LoanItems.LoanDate,
-                    ReturnDate = LoanItems.ReturnDate,
+                    Id = l.Id,
+                    ItemId = l.ItemId,
+                    LoanDate = l.LoanDate,
+                    ReturnDate = l.ReturnDate,
                 }).ToList();
             }
 
             return response;
         }
 
+        private string FormatKey(string unformattedKey)
+        {
+            var result = new StringBuilder();
+            int i = 0;
+            while (i + 4 < unformattedKey.Length)
+            {
+                result.Append(unformattedKey.AsSpan(i, 4)).Append(' ');
+                i += 4;
+            }
+            if (i < unformattedKey.Length)
+                result.Append(unformattedKey.AsSpan(i));
+            return result.ToString().ToLowerInvariant();
+        }
+
+        private string GenerateQrCodeUri(string email, string unformattedKey)
+        {
+            return string.Format(
+                CultureInfo.InvariantCulture,
+                AuthenticatorUriFormat,
+                _urlEncoder.Encode("SOPInventar"),
+                _urlEncoder.Encode(email),
+                unformattedKey);
+        }
+
+        private string GenerateQrCodeBase64(string uri)
+        {
+            if (string.IsNullOrEmpty(uri)) return string.Empty;
+            using var qrGenerator = new QRCodeGenerator();
+            using var qrCodeData = qrGenerator.CreateQrCode(uri, QRCodeGenerator.ECCLevel.Q);
+            using var qrCode = new PngByteQRCode(qrCodeData);
+            var qrCodeBytes = qrCode.GetGraphic(5);
+            return $"data:image/png;base64,{Convert.ToBase64String(qrCodeBytes)}";
+        }
+
         [AllowAnonymous]
-        [HttpPost]
-        [Route("extend-token")]
-        public async Task<IActionResult> ExtendToken([FromBody] TokenRequest tokenRequest)
+        [HttpPost("extend-token")]
+        public IActionResult ExtendToken([FromBody] TokenRequest tokenRequest)
         {
             try
             {
@@ -578,5 +455,4 @@ namespace SOP.Controllers
             }
         }
     }
-
 }

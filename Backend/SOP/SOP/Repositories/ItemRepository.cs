@@ -1,6 +1,6 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using SOP.Database;
-using SOP.Archive.DTOs;
+using SOP.Entities;
 using SOP.Archive.Entities;
 
 namespace SOP.Repositories
@@ -10,86 +10,110 @@ namespace SOP.Repositories
         Task<Item> CreateAsync(Item newItem);
         Task<Item?> FindByIdAsync(int itemId);
         Task<Item?> UpdateByIdAsync(int itemId, Item updateItem);
-        Task<Archive_Item?> ArchiveByIdAsync(int itemId, string archiveNote);
         Task<List<Item>> GetAllAsync();
+
+        // Guarded operations
+        Task<DeleteResult<Item>> DeleteByIdAsync(int itemId);
+        Task<ArchiveResult<Archive_Item>> ArchiveByIdAsync(int itemId, string archiveNote);
     }
 
     public class ItemRepository : IItemRepository
     {
         private readonly DatabaseContext _context;
 
-        // Initializes the repository with the database context for accessing data
         public ItemRepository(DatabaseContext context)
         {
             _context = context;
         }
 
-        // Adds a new Item, saves changes, retrieves, and returns it
         public async Task<Item> CreateAsync(Item newItem)
         {
             _context.Item.Add(newItem);
             await _context.SaveChangesAsync();
-            newItem = await FindByIdAsync(newItem.Id);
-            return newItem;
+            return await FindByIdAsync(newItem.Id);
         }
 
-        // Please refer to the class diagram or ER diagram for entity relationships
-        // Finds a Item by ID, including related entities and returns it
         public async Task<Item?> FindByIdAsync(int itemId)
         {
             return await _context.Item
                 .Include(i => i.ItemGroup)
-                .ThenInclude(ig => ig.ItemType)
+                    .ThenInclude(ig => ig.ItemType)
                 .Include(i => i.StatusHistories)
-                .ThenInclude(sh => sh.Status)
+                    .ThenInclude(sh => sh.Status)
                 .Include(i => i.Room)
-                .ThenInclude(r => r.Building)
-                .ThenInclude(b => b.Address)
+                    .ThenInclude(r => r.Building)
+                        .ThenInclude(b => b.Address)
                 .Include(i => i.Loan)
                 .FirstOrDefaultAsync(i => i.Id == itemId);
         }
 
-        // Please refer to the class diagram or ER diagram for entity relationships
-        // Retrieves all Items, including related entities and returns them
         public async Task<List<Item>> GetAllAsync()
         {
             return await _context.Item
                 .Include(i => i.ItemGroup)
-                .ThenInclude(ig => ig.ItemType)
+                    .ThenInclude(ig => ig.ItemType)
                 .Include(i => i.StatusHistories)
-                .ThenInclude(sh => sh.Status)
+                    .ThenInclude(sh => sh.Status)
                 .Include(i => i.Room)
-                .ThenInclude(r => r.Building)
-                .ThenInclude(b => b.Address)
+                    .ThenInclude(r => r.Building)
+                        .ThenInclude(b => b.Address)
                 .Include(i => i.Loan)
                 .ToListAsync();
         }
 
-        // Updates a Item by ID and returns the updated entity
         public async Task<Item?> UpdateByIdAsync(int itemId, Item updateItem)
         {
             var item = await FindByIdAsync(itemId);
-            if (item != null)
-            {
-                item.ItemGroupId = updateItem.ItemGroupId;
-                item.RoomId = updateItem.RoomId;
-                item.SerialNumber = updateItem.SerialNumber;
-                await _context.SaveChangesAsync();
-                item = await FindByIdAsync(itemId);
-            }
-            return item;
+            if (item == null) return null;
+
+            item.ItemGroupId = updateItem.ItemGroupId;
+            item.RoomId = updateItem.RoomId;
+            item.SerialNumber = updateItem.SerialNumber;
+
+            await _context.SaveChangesAsync();
+            return await FindByIdAsync(itemId);
         }
 
-        // Archive an Item by ID, including all associated StatusHistories
-        public async Task<Archive_Item?> ArchiveByIdAsync(int itemId, string archiveNote)
+        // ========= Guarded hard delete =========
+        public async Task<DeleteResult<Item>> DeleteByIdAsync(int itemId)
         {
-            Item item = await FindByIdAsync(itemId);
-            if (item == null)
-            {
-                return null;
-            }
+            var item = await _context.Item
+                .Include(i => i.Room)
+                .Include(i => i.ItemGroup)
+                .FirstOrDefaultAsync(i => i.Id == itemId);
 
-            Archive_Item archiveItem = new Archive_Item
+            if (item == null)
+                return DeleteResult<Item>.NotFound();
+
+            var inUse = await _context.Loan.AnyAsync(l => l.ItemId == itemId && l.ReturnDate == null);
+            if (inUse)
+                return DeleteResult<Item>.InUse(null);
+
+            // If cascade isn't configured for StatusHistory, remove them manually
+            var histories = _context.StatusHistory.Where(sh => sh.ItemId == itemId);
+            _context.StatusHistory.RemoveRange(histories);
+
+            _context.Item.Remove(item);
+            await _context.SaveChangesAsync();
+
+            return DeleteResult<Item>.Deleted(item);
+        }
+
+        // ========= Guarded archive =========
+        public async Task<ArchiveResult<Archive_Item>> ArchiveByIdAsync(int itemId, string archiveNote)
+        {
+            var item = await _context.Item
+                .Include(i => i.StatusHistories)
+                .FirstOrDefaultAsync(i => i.Id == itemId);
+
+            if (item == null)
+                return ArchiveResult<Archive_Item>.NotFound();
+
+            var inUse = await _context.Loan.AnyAsync(l => l.ItemId == itemId && l.ReturnDate == null);
+            if (inUse)
+                return ArchiveResult<Archive_Item>.InUse(null);
+
+            var archive = new Archive_Item
             {
                 Id = item.Id,
                 DeleteTime = DateTime.Now,
@@ -97,30 +121,28 @@ namespace SOP.Repositories
                 RoomId = item.RoomId,
                 SerialNumber = item.SerialNumber,
                 ArchiveNote = archiveNote,
-                StatusHistories = item.StatusHistories?
-                    .Select(statusHistory => new Archive_StatusHistory
-                    {
-                        Id = statusHistory.Id,
-                        ItemId = item.Id,
-                        StatusId = statusHistory.StatusId,
-                        StatusUpdateDate = statusHistory.StatusUpdateDate,
-                        Note = statusHistory.Note,
-                        ArchiveNote = archiveNote,
-                        DeleteTime = DateTime.Now,
-                    })
-                    .ToList()
+                StatusHistories = item.StatusHistories?.Select(sh => new Archive_StatusHistory
+                {
+                    Id = sh.Id,
+                    ItemId = item.Id,
+                    StatusId = sh.StatusId,
+                    StatusUpdateDate = sh.StatusUpdateDate,
+                    Note = sh.Note,
+                    ArchiveNote = archiveNote,
+                    DeleteTime = DateTime.Now
+                }).ToList()
             };
 
-            _context.Archive_Item.Add(archiveItem);
+            _context.Archive_Item.Add(archive);
 
-            // Explicitly remove StatusHistory before deleting the Item if cascade delete is not set up
-            var statusHistories = _context.StatusHistory.Where(sh => sh.ItemId == item.Id);
-            _context.StatusHistory.RemoveRange(statusHistories);
+            // If cascade isn't configured for StatusHistory, remove them manually
+            var histories = _context.StatusHistory.Where(sh => sh.ItemId == item.Id);
+            _context.StatusHistory.RemoveRange(histories);
 
             _context.Item.Remove(item);
             await _context.SaveChangesAsync();
 
-            return archiveItem;
+            return ArchiveResult<Archive_Item>.Archived(archive);
         }
     }
 }

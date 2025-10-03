@@ -12,7 +12,7 @@ namespace SOP.Repositories
         Task<User> CreateAsync(User user);
         Task<User> FindByIdAsync(int id);
         Task<User> UpdateByIdAsync(int id, User user);
-        Task<Archive_User> ArchiveByIdAsync(int id, string archiveNote);
+        Task<ArchiveResult<Archive_User>> ArchiveByIdAsync(int id, string archiveNote);
         Task<User?> GetByEmail(string email);
         Task<User> UpdatePasswordByIdAsync(int id, User user);
         Task<List<User>> GetUsersByRoleAsync(int RoleId);
@@ -116,36 +116,19 @@ namespace SOP.Repositories
 
         // Archive a User by ID, including all associated Loans and Requests
 
-        public async Task<Archive_User> ArchiveByIdAsync(int userId, string archiveNote)
-
+        public async Task<ArchiveResult<Archive_User>> ArchiveByIdAsync(int userId, string archiveNote)
         {
-            User user = await FindByIdAsync(userId);
+            var user = await FindByIdAsync(userId);
             if (user == null)
-            {
-                return null;
-            }
+                return ArchiveResult<Archive_User>.NotFound();
 
-            // Archive all Loans associated with this User
-            List<Loan> loansToArchive = await _context.Loan
-                .Where(loan => loan.UserId == userId)
-                .ToListAsync();
+            // guard: block archive if the user has an active loan
+            bool hasActiveLoan = await _context.Loan.AnyAsync(l => l.UserId == userId && l.ReturnDate == null);
+            if (hasActiveLoan)
+                return ArchiveResult<Archive_User>.InUse(null); // or pass a minimal entity if you prefer
 
-            foreach (var loan in loansToArchive)
-            {
-                await ArchiveLoan(loan, archiveNote);
-            }
-
-            // Archive all Requests associated with this User
-            List<Request> requestsToArchive = await _context.Request
-                .Where(request => request.UserId == userId)
-                .ToListAsync();
-
-            foreach (var request in requestsToArchive)
-            {
-                await ArchiveRequest(request, archiveNote);
-            }
-
-            Archive_User archiveUser = new Archive_User
+            // … your existing archive logic …
+            var archiveUser = new Archive_User
             {
                 Id = user.Id,
                 Name = user.Name,
@@ -162,7 +145,7 @@ namespace SOP.Repositories
             _context.User.Remove(user);
             await _context.SaveChangesAsync();
 
-            return archiveUser;
+            return ArchiveResult<Archive_User>.Archived(archiveUser);
         }
 
         private async Task ArchiveLoan(Loan loan, string archiveNote)

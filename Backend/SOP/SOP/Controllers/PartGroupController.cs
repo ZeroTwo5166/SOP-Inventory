@@ -21,6 +21,14 @@ namespace SOP.Controllers
             _partGroupRepository = partGroupRepository;
         }
 
+
+        private static string? SafeDecrypt(string? v)
+        {
+            if (string.IsNullOrWhiteSpace(v)) return v;
+            try { return EncryptionHelper.Decrypt(v); }
+            catch { return v; }
+        }
+
         [Authorize("Admin", "Instruktør")]
         [HttpGet]
         public async Task<IActionResult> GetAllAsync()
@@ -51,6 +59,10 @@ namespace SOP.Controllers
             try
             {
                 PartGroup newPartGroup = MapPartGroupRequestToPartGroup(partGroupRequest);
+
+                newPartGroup.PartName = EncryptionHelper.Encrypt(newPartGroup.PartName);
+                newPartGroup.Manufacturer = EncryptionHelper.Encrypt(newPartGroup.Manufacturer);
+                newPartGroup.WarrantyPeriod = EncryptionHelper.Encrypt(newPartGroup.WarrantyPeriod);
 
                 var partGroup = await _partGroupRepository.CreateAsync(newPartGroup);
 
@@ -94,6 +106,11 @@ namespace SOP.Controllers
             {
                 var updatePartGroup = MapPartGroupRequestToPartGroup(partGroupRequest);
 
+                updatePartGroup.PartName = EncryptionHelper.Encrypt(updatePartGroup.PartName);
+                updatePartGroup.Manufacturer = EncryptionHelper.Encrypt(updatePartGroup.Manufacturer);
+                updatePartGroup.WarrantyPeriod = EncryptionHelper.Encrypt(updatePartGroup.WarrantyPeriod);
+
+
                 var partGroup = await _partGroupRepository.UpdateByIdAsync(partGroupId, updatePartGroup);
 
                 if (partGroup == null)
@@ -110,15 +127,45 @@ namespace SOP.Controllers
             }
         }
 
+        [Authorize("Admin", "Instruktør")]
+        [HttpDelete("{partGroupId}")]
+        public async Task<IActionResult> DeleteByIdAsync([FromRoute] int partGroupId)
+        {
+            try
+            {
+                var result = await _partGroupRepository.DeleteByIdAsync(partGroupId);
+
+                return result.Status switch
+                {
+                    DeleteStatus.NotFound => NotFound(),
+
+                    DeleteStatus.InUse => Conflict(new
+                    {
+                        code = "PARTGROUP_IN_USE",
+                        message = "Part group has parts attached and cannot be deleted."
+                    }),
+
+                    DeleteStatus.Deleted => Ok(MapPartGroupToPartGroupResponse(result.Entity!)),
+
+                    _ => Problem("Unknown delete result.")
+                };
+            }
+            catch (Exception ex)
+            {
+                return Problem(ex.Message);
+            }
+        }
+
+
         private static PartGroupResponse MapPartGroupToPartGroupResponse(PartGroup partGroup)
         {
             PartGroupResponse response = new PartGroupResponse
             {
                 Id = partGroup.Id,
-                PartName = partGroup.PartName,
+                PartName = SafeDecrypt(partGroup.PartName),
                 Price = partGroup.Price,
-                Manufacturer = partGroup.Manufacturer,
-                WarrantyPeriod = partGroup.WarrantyPeriod,
+                Manufacturer = SafeDecrypt(partGroup.Manufacturer),
+                WarrantyPeriod = SafeDecrypt(partGroup.WarrantyPeriod),
                 ReleaseDate = partGroup.ReleaseDate,
                 Quantity = partGroup.Quantity,
                 PartTypeId = partGroup.PartTypeId,

@@ -19,6 +19,14 @@ namespace SOP.Controllers
             _requestRepository = requestRepository;
         }
 
+        private static string? SafeDecrypt(string? v) 
+        {
+            if (string.IsNullOrEmpty(v)) return v;
+            try { return EncryptionHelper.Decrypt(v); }
+            catch { return v; }
+        }
+
+
         [Authorize("Admin", "Instruktør", "Drift")]
         [HttpGet]
         public async Task<IActionResult> GetAllAsync()
@@ -46,9 +54,16 @@ namespace SOP.Controllers
             {
                 Request newRequest = MapRequestRequestToRequest(requestRequest);
 
+                // Encrypt before save
+                newRequest.Item = EncryptionHelper.Encrypt(newRequest.Item);
+                newRequest.Message = EncryptionHelper.Encrypt(newRequest.Message);
+                newRequest.Status = EncryptionHelper.Encrypt(newRequest.Status);
+                newRequest.RecipientEmail = EncryptionHelper.Encrypt(newRequest.RecipientEmail);
+
                 var request = await _requestRepository.CreateAsync(newRequest);
 
                 RequestResponse requestResponse = MapRequestToRequestResponse(request);
+                
 
                 return Ok(requestResponse);
             }
@@ -88,6 +103,12 @@ namespace SOP.Controllers
             {
                 var updateRequest = MapRequestRequestToRequest(requestRequest);
 
+                // Encrypt before save
+                updateRequest.Item = EncryptionHelper.Encrypt(updateRequest.Item);
+                updateRequest.Message = EncryptionHelper.Encrypt(updateRequest.Message);
+                updateRequest.Status = EncryptionHelper.Encrypt(updateRequest.Status);
+                updateRequest.RecipientEmail = EncryptionHelper.Encrypt(updateRequest.RecipientEmail);
+
                 var request = await _requestRepository.UpdateByIdAsync(Id, updateRequest);
 
                 if (request == null)
@@ -110,23 +131,22 @@ namespace SOP.Controllers
         {
             try
             {
-                string archiveNote = archiveNoteRequest.ArchiveNote;
-                var request = await _requestRepository.ArchiveByIdAsync(Id, archiveNote);
-                if (request == null)
-                {
-                    return NotFound();
-                }
+                // Encrypt archive note BEFORE save
+                var encryptedNote = EncryptionHelper.Encrypt(archiveNoteRequest.ArchiveNote);
 
-                Archive_RequestResponse response = new Archive_RequestResponse
+                var request = await _requestRepository.ArchiveByIdAsync(Id, encryptedNote);
+                if (request == null) return NotFound();
+
+                var response = new Archive_RequestResponse
                 {
                     Id = request.Id,
                     Date = request.Date,
-                    Item = request.Item,
-                    Message = request.Message,
+                    Item = SafeDecrypt(request.Item),
+                    Message = SafeDecrypt(request.Message),
                     UserId = request.UserId,
-                    Status = request.Status,
-                    RecipientEmail = request.RecipientEmail,
-                    ArchiveNote = request.ArchiveNote,
+                    Status = SafeDecrypt(request.Status),
+                    RecipientEmail = SafeDecrypt(request.RecipientEmail),
+                    ArchiveNote = SafeDecrypt(request.ArchiveNote),
                 };
 
                 return Ok(response);
@@ -137,28 +157,28 @@ namespace SOP.Controllers
             }
         }
 
-        private static RequestResponse MapRequestToRequestResponse(Request Request)
+        private static RequestResponse MapRequestToRequestResponse(Request r)
         {
-            RequestResponse response = new RequestResponse
+            var response = new RequestResponse
             {
-                Id = Request.Id,
-                Date = Request.Date,
-                Item = Request.Item,
-                Message = Request.Message,
-                UserId = Request.UserId,
-                Status = Request.Status,
-                RecipientEmail = Request.RecipientEmail,
+                Id = r.Id,
+                Date = r.Date,
+                Item = SafeDecrypt(r.Item),
+                Message = SafeDecrypt(r.Message),
+                UserId = r.UserId,
+                Status = SafeDecrypt(r.Status),
+                RecipientEmail = SafeDecrypt(r.RecipientEmail),
             };
 
-            if (Request.User != null)
+            if (r.User != null)
             {
                 response.RequestUser = new RequestUserResponse
                 {
-                    Id = Request.User.Id,
-                    Email = EncryptionHelper.Decrypt(Request.User.Email),
-                    Name = Request.User.Name,
-                    RoleId = Request.User.RoleId,
-                    TwoFactorAuthentication = Request.User.TwoFactorAuthentication,
+                    Id = r.User.Id,
+                    Email = SafeDecrypt(r.User.Email),
+                    Name = SafeDecrypt(r.User.Name),
+                    RoleId = r.User.RoleId,
+                    TwoFactorAuthentication = r.User.TwoFactorAuthentication,
                 };
             }
 

@@ -41,45 +41,14 @@ namespace SOP.Database
         {
             base.OnModelCreating(modelBuilder);
 
-            // Configure Computer relationships from second file
-            modelBuilder.Entity<Computer>()
-                .HasOne<Item>()
-                .WithMany()
-                .HasForeignKey(c => c.Id)
-                .OnDelete(DeleteBehavior.Cascade);
+            // =========================
+            // Keys / Value Generation
+            // =========================
 
-            modelBuilder.Entity<Item>()
-                .HasKey(i => i.Id);
-
-            modelBuilder.Entity<Computer>()
-                .HasOne(c => c.Item)
-                .WithMany()
-                .HasForeignKey(c => c.Id)
-                .OnDelete(DeleteBehavior.Cascade);
-
-            modelBuilder.Entity<Computer>()
-                .HasMany(c => c.Computer_ComputerParts)
-                .WithOne(ccp => ccp.Computer)
-                .HasForeignKey(ccp => ccp.ComputerId)
-                .OnDelete(DeleteBehavior.Cascade);
-
-            modelBuilder.Entity<Computer_ComputerPart>()
-                .HasOne(ccp => ccp.ComputerPart)
-                .WithOne(cp => cp.Computer_ComputerPart)
-                .HasForeignKey<Computer_ComputerPart>(ccp => ccp.ComputerPartId)
-                .OnDelete(DeleteBehavior.Cascade);
-
-            // Configure Address Id as PK
             modelBuilder.Entity<Address>()
                 .Property(a => a.Id)
                 .ValueGeneratedOnAdd();
 
-            // Configure Computer Id
-            modelBuilder.Entity<Computer>()
-                .Property(c => c.Id)
-                .ValueGeneratedNever();
-
-            // Configure other entities' keys and value generation from first file
             modelBuilder.Entity<Item>()
                 .Property(i => i.Id)
                 .ValueGeneratedOnAdd();
@@ -108,6 +77,7 @@ namespace SOP.Database
                 .Property(u => u.Id)
                 .ValueGeneratedOnAdd();
 
+            // Archive tables use existing ids (no auto-gen)
             modelBuilder.Entity<Archive_Item>()
                 .Property(i => i.Id)
                 .ValueGeneratedNever();
@@ -136,7 +106,128 @@ namespace SOP.Database
                 .Property(u => u.Id)
                 .ValueGeneratedNever();
 
-            // Seed data for Role (merging both files, using first file's comprehensive data)
+            // Computer uses Item's PK as FK (table-per-type-like)
+            modelBuilder.Entity<Item>()
+                .HasKey(i => i.Id);
+
+            modelBuilder.Entity<Computer>()
+                .Property(c => c.Id)
+                .ValueGeneratedNever();
+
+            // =========================
+            // RELATIONSHIPS (RESTRICT)
+            // =========================
+
+            // Address (1) -> Building (many)
+            modelBuilder.Entity<Building>()
+                .HasOne(b => b.Address)
+                .WithMany() // keep if Address doesn't expose ICollection<Building> Buildings
+                .HasForeignKey(b => b.AddressId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            // Building (1) -> Room (many)
+            modelBuilder.Entity<Room>()
+                .HasOne(r => r.Building)
+                .WithMany() // keep if Building doesn't expose ICollection<Room> Rooms
+                .HasForeignKey(r => r.BuildingId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            // Room (1) -> Item (many)  **FIX: point to real inverse nav to avoid RoomId1**
+            modelBuilder.Entity<Item>()
+                .HasOne(i => i.Room)
+                .WithMany(r => r.Items)                 // <— Room.Items must exist
+                .HasForeignKey(i => i.RoomId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            // ItemGroup (1) -> Item (many) (leave inverse blank if ItemGroup.Items doesn't exist)
+            modelBuilder.Entity<Item>()
+                .HasOne(i => i.ItemGroup)
+                .WithMany() // or .WithMany(g => g.Items) if you have it
+                .HasForeignKey(i => i.ItemGroupId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            // ItemType (1) -> ItemGroup (many)
+            modelBuilder.Entity<ItemGroup>()
+                .HasOne(ig => ig.ItemType)
+                .WithMany() // or .WithMany(it => it.ItemGroups) if you have it
+                .HasForeignKey(ig => ig.ItemTypeId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            // Loan -> User (many-to-one)  **FIX: point to User.Loans to avoid UserId1**
+            modelBuilder.Entity<Loan>()
+                .HasOne(l => l.User)
+                .WithMany(u => u.Loans)                 // <— User.Loans must exist
+                .HasForeignKey(l => l.UserId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            // Item ↔ Loan **FIX: make it one-to-one** (you use Item.Loan everywhere)
+            // This replaces the previous "Loan -> Item .WithMany()" mapping.
+            modelBuilder.Entity<Item>()
+                .HasOne(i => i.Loan)                    // <— Item.Loan (singular) must exist
+                .WithOne(l => l.Item)                   // <— Loan.Item must exist
+                .HasForeignKey<Loan>(l => l.ItemId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            // StatusHistory -> Item  **FIX: point to Item.StatusHistories to avoid ItemId1 on SH**
+            modelBuilder.Entity<StatusHistory>()
+                .HasOne(sh => sh.Item)
+                .WithMany(i => i.StatusHistories)       // <— Item.StatusHistories must exist
+                .HasForeignKey(sh => sh.ItemId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            // StatusHistory -> Status (keep inverse blank if Status doesn't expose a collection)
+            modelBuilder.Entity<StatusHistory>()
+                .HasOne(sh => sh.Status)
+                .WithMany()
+                .HasForeignKey(sh => sh.StatusId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            // Request -> User (keep inverse blank unless you have User.Requests)
+            modelBuilder.Entity<Request>()
+                .HasOne(r => r.User)
+                .WithMany()
+                .HasForeignKey(r => r.UserId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            // PartGroup -> PartType
+            modelBuilder.Entity<PartGroup>()
+                .HasOne(pg => pg.PartType)
+                .WithMany()
+                .HasForeignKey(pg => pg.PartTypeId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            // ComputerPart -> PartGroup
+            modelBuilder.Entity<ComputerPart>()
+                .HasOne(cp => cp.PartGroup)
+                .WithMany() // or .WithMany(pg => pg.ComputerParts) if you have it
+                .HasForeignKey(cp => cp.PartGroupId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            // Computer (child) -> Item (parent) via same PK
+            modelBuilder.Entity<Computer>()
+                .HasOne(c => c.Item)
+                .WithMany()
+                .HasForeignKey(c => c.Id)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            // Computer -> Computer_ComputerPart (join)
+            modelBuilder.Entity<Computer>()
+                .HasMany(c => c.Computer_ComputerParts)
+                .WithOne(ccp => ccp.Computer)
+                .HasForeignKey(ccp => ccp.ComputerId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            // Join -> ComputerPart (one-to-one link, block deleting part if joined)
+            modelBuilder.Entity<Computer_ComputerPart>()
+                .HasOne(ccp => ccp.ComputerPart)
+                .WithOne(cp => cp.Computer_ComputerPart)
+                .HasForeignKey<Computer_ComputerPart>(ccp => ccp.ComputerPartId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            // =========================
+            // Seeding
+            // =========================
+
             modelBuilder.Entity<Role>().HasData(
                 new Role { Id = 1, Name = "Admin", Description = "Administrator" },
                 new Role { Id = 2, Name = "Instruktør", Description = "Instruktør" },
@@ -144,7 +235,6 @@ namespace SOP.Database
                 new Role { Id = 4, Name = "Drift", Description = "Drift" }
             );
 
-            // Seed data for Address (from first file)
             modelBuilder.Entity<Address>().HasData(
                 new Address { Id = 1, ZipCode = 2750, City = "Ballerup", Region = "Sjælland", Road = "Telegrafvej 9" },
                 new Address { Id = 2, ZipCode = 2650, City = "Hvidovre", Region = "Sjælland", Road = "Stamholmen 193, 215" },
@@ -153,13 +243,11 @@ namespace SOP.Database
                 new Address { Id = 5, ZipCode = 2800, City = "Lyngby", Region = "Sjælland", Road = "Gyrithe Lemches Vej 14" }
             );
 
-            // Seed data for Building (from first file)
             modelBuilder.Entity<Building>().HasData(
                 new Building { Id = 1, BuildingName = "A", AddressId = 3 },
                 new Building { Id = 2, BuildingName = "C", AddressId = 2 }
             );
 
-            // Seed data for Room (from first file)
             modelBuilder.Entity<Room>().HasData(
                 new Room { Id = 1, BuildingId = 1, RoomNumber = 1 },
                 new Room { Id = 2, BuildingId = 2, RoomNumber = 19 },
@@ -169,7 +257,6 @@ namespace SOP.Database
                 new Room { Id = 6, BuildingId = 2, RoomNumber = 15 }
             );
 
-            // Seed data for Status (from first file)
             modelBuilder.Entity<Status>().HasData(
                 new Status { Id = 1, Name = "Virker" },
                 new Status { Id = 2, Name = "Gik stykker" },
@@ -177,7 +264,6 @@ namespace SOP.Database
                 new Status { Id = 4, Name = "Udlånt" }
             );
 
-            // Seed data for ItemType (from first file)
             modelBuilder.Entity<ItemType>().HasData(
                 new ItemType { Id = 1, TypeName = "Computer" },
                 new ItemType { Id = 2, TypeName = "Bord" },
@@ -186,7 +272,6 @@ namespace SOP.Database
                 new ItemType { Id = 5, TypeName = "Tastatur" }
             );
 
-            // Seed data for ItemGroup (from first file)
             modelBuilder.Entity<ItemGroup>().HasData(
                 new ItemGroup { Id = 1, ItemTypeId = 1, ModelName = "Acer Nitro 5", Price = 9875.99m, Manufacturer = "Acer", WarrantyPeriod = "3 år", Quantity = 30 },
                 new ItemGroup { Id = 2, ItemTypeId = 2, ModelName = "SANDSBERG ", Price = 299.00m, Manufacturer = "IKEA", WarrantyPeriod = "2 år", Quantity = 20 },
@@ -196,31 +281,25 @@ namespace SOP.Database
                 new ItemGroup { Id = 6, ItemTypeId = 5, ModelName = "Logitech MX Keys", Price = 999.00m, Manufacturer = "Logitech", WarrantyPeriod = "2 år", Quantity = 25 }
             );
 
-            // Seed data for Item (from first file)
             modelBuilder.Entity<Item>().HasData(
-                // ItemGroupId = 1 (Acer Nitro 5 - Computer)
                 new Item { Id = 1, RoomId = 1, ItemGroupId = 1, SerialNumber = "ACN5-001A" },
                 new Item { Id = 2, RoomId = 3, ItemGroupId = 1, SerialNumber = "ACN5-001B" },
                 new Item { Id = 3, RoomId = 5, ItemGroupId = 1, SerialNumber = "ACN5-001C" },
                 new Item { Id = 4, RoomId = 2, ItemGroupId = 1, SerialNumber = "ACN5-001D" }
             );
 
-            // Seed data for Computer (from second file)
             modelBuilder.Entity<Computer>().HasData(
                 new Computer { Id = 1 },
                 new Computer { Id = 3 }
             );
 
-            // Seed data for StatusHistory (from first file)
             modelBuilder.Entity<StatusHistory>().HasData(
-    new StatusHistory { Id = 1, ItemId = 1, StatusId = 1, StatusUpdateDate = new DateTime(2024, 10, 28), Note = "Ny" },
-    new StatusHistory { Id = 2, ItemId = 2, StatusId = 1, StatusUpdateDate = new DateTime(2024, 10, 28), Note = "Ny" },
-    new StatusHistory { Id = 3, ItemId = 3, StatusId = 2, StatusUpdateDate = new DateTime(2024, 11, 28), Note = "Virke ikke" },
-    new StatusHistory { Id = 4, ItemId = 4, StatusId = 2, StatusUpdateDate = new DateTime(2024, 11, 30), Note = "Virke ikke" }
-    // Add more StatusHistory seed data as needed, ensuring each entry is valid and not corrupted.
-               );
+                new StatusHistory { Id = 1, ItemId = 1, StatusId = 1, StatusUpdateDate = new DateTime(2024, 10, 28), Note = "Ny" },
+                new StatusHistory { Id = 2, ItemId = 2, StatusId = 1, StatusUpdateDate = new DateTime(2024, 10, 28), Note = "Ny" },
+                new StatusHistory { Id = 3, ItemId = 3, StatusId = 2, StatusUpdateDate = new DateTime(2024, 11, 28), Note = "Virke ikke" },
+                new StatusHistory { Id = 4, ItemId = 4, StatusId = 2, StatusUpdateDate = new DateTime(2024, 11, 30), Note = "Virke ikke" }
+            );
 
-            // Seed data for PartGroup (from second file)
             modelBuilder.Entity<PartGroup>().HasData(
                 new PartGroup
                 {
@@ -246,27 +325,23 @@ namespace SOP.Database
                 }
             );
 
-            // Seed data for PartType (from second file)
             modelBuilder.Entity<PartType>().HasData(
                 new PartType { Id = 1, PartTypeName = "RAM" },
                 new PartType { Id = 2, PartTypeName = "Graffikort" }
             );
 
-            // Seed data for ComputerPart (from second file)
             modelBuilder.Entity<ComputerPart>().HasData(
                 new ComputerPart { Id = 1, PartGroupId = 1, SerialNumber = "11345134513", ModelNumber = "14123VGE34" },
                 new ComputerPart { Id = 2, PartGroupId = 2, SerialNumber = "546873957", ModelNumber = "3456345GB45" },
                 new ComputerPart { Id = 3, PartGroupId = 1, SerialNumber = "546873957", ModelNumber = "3456345GB45" }
             );
 
-            // Seed data for Computer_ComputerPart (from second file)
             modelBuilder.Entity<Computer_ComputerPart>().HasData(
                 new Computer_ComputerPart { Id = 1, ComputerId = 1, ComputerPartId = 1 },
                 new Computer_ComputerPart { Id = 2, ComputerId = 1, ComputerPartId = 2 },
                 new Computer_ComputerPart { Id = 3, ComputerId = 3, ComputerPartId = 3 }
             );
 
-            // Seed data for User (from first file, with encrypted emails)
             string salt = BCrypt.Net.BCrypt.GenerateSalt(10);
             modelBuilder.Entity<User>().HasData(
                 new User
@@ -289,29 +364,28 @@ namespace SOP.Database
                     TwoFactorAuthentication = true,
                     TwoFactorSecretKey = ""
                 },
-                 new User
-                 {
-                      Id = 3,
-                      Email = EncryptionHelper.Encrypt("instruktør@tec.dk"),
-                      Name = "Instruktør",
-                      Password = BCrypt.Net.BCrypt.HashPassword("1234!", salt, true, BCrypt.Net.HashType.SHA512),
-                      RoleId = 2,
-                      TwoFactorAuthentication = true,
-                      TwoFactorSecretKey = ""
-                 },
-                 new User
-                 {
-                     Id = 4,
-                     Email = EncryptionHelper.Encrypt("elev@tec.dk"),
-                     Name = "Elev",
-                     Password = BCrypt.Net.BCrypt.HashPassword("1234!", salt, true, BCrypt.Net.HashType.SHA512),
-                     RoleId = 3,
-                     TwoFactorAuthentication = true,
-                     TwoFactorSecretKey = ""
-                 }
+                new User
+                {
+                    Id = 3,
+                    Email = EncryptionHelper.Encrypt("instruktør@tec.dk"),
+                    Name = "Instruktør",
+                    Password = BCrypt.Net.BCrypt.HashPassword("1234!", salt, true, BCrypt.Net.HashType.SHA512),
+                    RoleId = 2,
+                    TwoFactorAuthentication = true,
+                    TwoFactorSecretKey = ""
+                },
+                new User
+                {
+                    Id = 4,
+                    Email = EncryptionHelper.Encrypt("elev@tec.dk"),
+                    Name = "Elev",
+                    Password = BCrypt.Net.BCrypt.HashPassword("1234!", salt, true, BCrypt.Net.HashType.SHA512),
+                    RoleId = 3,
+                    TwoFactorAuthentication = true,
+                    TwoFactorSecretKey = ""
+                }
             );
 
-            // Seed data for Request (from first file)
             modelBuilder.Entity<Request>().HasData(
                 new Request
                 {
@@ -325,7 +399,6 @@ namespace SOP.Database
                 }
             );
 
-            // Seed data for Loan (from first file)
             modelBuilder.Entity<Loan>().HasData(
                 new Loan
                 {
@@ -334,7 +407,7 @@ namespace SOP.Database
                     UserId = 1,
                     LoanDate = new DateTime(2024, 10, 15, 8, 59, 59),
                     ReturnDate = new DateTime(2026, 6, 29, 14, 59, 59)
-                } 
+                }
             );
         }
     }

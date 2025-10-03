@@ -1,6 +1,9 @@
 ﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
 using SOP.Archive.DTOs;
 using SOP.Entities;
+using SOP.Repositories;     
+using SOP.Encryption;    
 
 namespace SOP.Controllers
 {
@@ -15,6 +18,13 @@ namespace SOP.Controllers
             _itemGroupRepository = itemGroupRepository;
         }
 
+        private static string? SafeDecrypt(string? v)
+        {
+            if (string.IsNullOrWhiteSpace(v)) return v;
+            try { return EncryptionHelper.Decrypt(v); }
+            catch { return v; }
+        }
+
         [Authorize("Admin", "Instruktør", "Drift")]
         [HttpGet]
         public async Task<IActionResult> GetAllAsync()
@@ -23,8 +33,9 @@ namespace SOP.Controllers
             {
                 var itemGroups = await _itemGroupRepository.GetAllAsync();
 
-                List<ItemGroupResponse> itemGroupResponses = itemGroups.Select(
-                    itemGroup => MapItemGroupToItemGroupResponse(itemGroup)).ToList();
+                var itemGroupResponses = itemGroups
+                    .Select(MapItemGroupToItemGroupResponse)
+                    .ToList();
 
                 return Ok(itemGroupResponses);
             }
@@ -40,13 +51,15 @@ namespace SOP.Controllers
         {
             try
             {
-                ItemGroup newItemGroup = MapItemGroupRequestToItemGroup(itemGroupRequest);
+                var newItemGroup = MapItemGroupRequestToItemGroup(itemGroupRequest);
+
+                // Encrypt string fields before save
+                newItemGroup.ModelName = EncryptionHelper.Encrypt(newItemGroup.ModelName);
+                newItemGroup.Manufacturer = EncryptionHelper.Encrypt(newItemGroup.Manufacturer);
+                newItemGroup.WarrantyPeriod = EncryptionHelper.Encrypt(newItemGroup.WarrantyPeriod);
 
                 var itemGroup = await _itemGroupRepository.CreateAsync(newItemGroup);
-
-                ItemGroupResponse itemGroupResponse = MapItemGroupToItemGroupResponse(itemGroup);
-
-                return Ok(itemGroupResponse);
+                return Ok(MapItemGroupToItemGroupResponse(itemGroup));
             }
             catch (Exception ex)
             {
@@ -55,17 +68,13 @@ namespace SOP.Controllers
         }
 
         [Authorize("Admin", "Instruktør", "Drift")]
-        [HttpGet]
-        [Route("{Id}")]
+        [HttpGet("{Id}")]
         public async Task<IActionResult> FindByIdAsync([FromRoute] int Id)
         {
             try
             {
                 var itemGroup = await _itemGroupRepository.FindByIdAsync(Id);
-                if (itemGroup == null)
-                {
-                    return NotFound();
-                }
+                if (itemGroup == null) return NotFound();
 
                 return Ok(MapItemGroupToItemGroupResponse(itemGroup));
             }
@@ -76,20 +85,20 @@ namespace SOP.Controllers
         }
 
         [Authorize("Admin", "Instruktør", "Drift")]
-        [HttpPut]
-        [Route("{Id}")]
+        [HttpPut("{Id}")]
         public async Task<IActionResult> UpdateByIdAsync([FromRoute] int Id, [FromBody] ItemGroupRequest itemGroupRequest)
         {
             try
             {
                 var updateItemGroup = MapItemGroupRequestToItemGroup(itemGroupRequest);
 
-                var itemGroup = await _itemGroupRepository.UpdateByIdAsync(Id, updateItemGroup);
+                // Encrypt string fields BEFORE save
+                updateItemGroup.ModelName = EncryptionHelper.Encrypt(updateItemGroup.ModelName);
+                updateItemGroup.Manufacturer = EncryptionHelper.Encrypt(updateItemGroup.Manufacturer);
+                updateItemGroup.WarrantyPeriod = EncryptionHelper.Encrypt(updateItemGroup.WarrantyPeriod);
 
-                if (itemGroup == null)
-                {
-                    return NotFound();
-                }
+                var itemGroup = await _itemGroupRepository.UpdateByIdAsync(Id, updateItemGroup);
+                if (itemGroup == null) return NotFound();
 
                 return Ok(MapItemGroupToItemGroupResponse(itemGroup));
             }
@@ -99,34 +108,49 @@ namespace SOP.Controllers
             }
         }
 
+        // Guarded archive: 200 on success, 404 if not found, 409 if "in use"
         [Authorize("Admin", "Drift")]
-        [HttpDelete]
-        [Route("ArchiveById/{Id}")]
+        [HttpDelete("ArchiveById/{Id}")]
         public async Task<IActionResult> ArchiveByIdAsync([FromRoute] int Id, [FromBody] ArchiveNoteRequest archiveNoteRequest)
         {
             try
             {
-                string archiveNote = archiveNoteRequest.ArchiveNote;
-                var itemGroup = await _itemGroupRepository.ArchiveByIdAsync(Id, archiveNote);
-                if (itemGroup == null)
+                var encryptedNote = EncryptionHelper.Encrypt(archiveNoteRequest.ArchiveNote);
+
+                var result = await _itemGroupRepository.ArchiveByIdAsync(Id, encryptedNote);
+
+                switch (result.Status)
                 {
-                    return NotFound();
+                    case ArchiveStatus.NotFound:
+                        return NotFound();
+
+                    case ArchiveStatus.InUse:
+                        return Conflict(new
+                        {
+                            code = "ITEMGROUP_IN_USE",
+                            message = "Item group cannot be archived because it still has dependent items (and/or items that are in use)."
+                        });
+
+                    case ArchiveStatus.Archived:
+                        var ig = result.Entity!;
+                        var response = new Archive_ItemGroupResponse
+                        {
+                            Id = ig.Id,
+                            DeleteTime = ig.DeleteTime,
+                            ItemTypeId = ig.ItemTypeId,
+                            ModelName = SafeDecrypt(ig.ModelName),
+                            Price = ig.Price,
+                            Manufacturer = SafeDecrypt(ig.Manufacturer),
+                            WarrantyPeriod = SafeDecrypt(ig.WarrantyPeriod),
+                            Quantity = ig.Quantity,
+                            ArchiveNote = SafeDecrypt(ig.ArchiveNote),
+                        };
+                        return Ok(response);
+
+                    default:
+                        // Should never happen, but don't 500 the user.
+                        return Problem("Unknown archive result.");
                 }
-
-                Archive_ItemGroupResponse response = new Archive_ItemGroupResponse
-                {
-                    Id = itemGroup.Id,
-                    DeleteTime = itemGroup.DeleteTime,
-                    ItemTypeId = itemGroup.ItemTypeId,
-                    ModelName = itemGroup.ModelName,
-                    Price = itemGroup.Price,
-                    Manufacturer = itemGroup.Manufacturer,
-                    WarrantyPeriod = itemGroup.WarrantyPeriod,
-                    Quantity = itemGroup.Quantity,
-                    ArchiveNote = itemGroup.ArchiveNote,
-                };
-
-                return Ok(response);
             }
             catch (Exception ex)
             {
@@ -134,18 +158,19 @@ namespace SOP.Controllers
             }
         }
 
-        private ItemGroupResponse MapItemGroupToItemGroupResponse(ItemGroup itemGroup)
+        private static ItemGroupResponse MapItemGroupToItemGroupResponse(ItemGroup itemGroup)
         {
-            ItemGroupResponse response = new ItemGroupResponse
+            var response = new ItemGroupResponse
             {
                 Id = itemGroup.Id,
                 ItemTypeId = itemGroup.ItemTypeId,
-                ModelName = itemGroup.ModelName,
+                ModelName = SafeDecrypt(itemGroup.ModelName),
                 Price = itemGroup.Price,
-                Manufacturer = itemGroup.Manufacturer,
-                WarrantyPeriod = itemGroup.WarrantyPeriod,
+                Manufacturer = SafeDecrypt(itemGroup.Manufacturer),
+                WarrantyPeriod = SafeDecrypt(itemGroup.WarrantyPeriod),
                 Quantity = itemGroup.Quantity,
             };
+
             if (itemGroup.ItemType != null)
             {
                 response.ItemType = new ItemGroupItemTypeResponse
@@ -154,19 +179,20 @@ namespace SOP.Controllers
                     TypeName = itemGroup.ItemType.TypeName
                 };
             }
+
             return response;
         }
 
-        private ItemGroup MapItemGroupRequestToItemGroup(ItemGroupRequest itemGroupRequest)
+        private static ItemGroup MapItemGroupRequestToItemGroup(ItemGroupRequest req)
         {
             return new ItemGroup
             {
-                ItemTypeId = itemGroupRequest.ItemTypeId,
-                ModelName = itemGroupRequest.ModelName,
-                Price = itemGroupRequest.Price,
-                Manufacturer = itemGroupRequest.Manufacturer,
-                WarrantyPeriod = itemGroupRequest.WarrantyPeriod,
-                Quantity = itemGroupRequest.Quantity,
+                ItemTypeId = req.ItemTypeId,
+                ModelName = req.ModelName,
+                Price = req.Price,
+                Manufacturer = req.Manufacturer,
+                WarrantyPeriod = req.WarrantyPeriod,
+                Quantity = req.Quantity,
             };
         }
     }

@@ -3,7 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using SOP.DTOs;
 using SOP.Entities;
 using SOP.Repositories;
-using System.Net;
+using SOP.Encryption;
 
 namespace SOP.Controllers
 {
@@ -18,118 +18,84 @@ namespace SOP.Controllers
             _buildingRepository = buildingRepository;
         }
 
+        private static string? SafeDecrypt(string? v)
+        {
+            if (string.IsNullOrWhiteSpace(v)) return v;
+            try { return EncryptionHelper.Decrypt(v); }
+            catch { return v; }
+        }
+
         [Authorize("Admin", "Instruktør", "Drift")]
         [HttpGet]
         public async Task<IActionResult> GetAllAsync()
         {
-            try
-            {
-                List<Building> building = await _buildingRepository.GetAllAsync();
-
-                List<BuildingResponse> buildingResponse = building.Select(
-                    building => MapBuildingToBuildingResponse(building)).ToList();
-                return Ok(buildingResponse);
-            }
-            catch (Exception ex)
-            {
-
-                return Problem(ex.Message);
-            }
+            var buildings = await _buildingRepository.GetAllAsync();
+            var dto = buildings.Select(MapBuildingToBuildingResponse).ToList();
+            return Ok(dto);
         }
 
         [Authorize("Admin", "Instruktør", "Drift")]
         [HttpPost]
         public async Task<IActionResult> CreateAsync([FromBody] BuildingRequest buildingRequest)
         {
-            try
-            {
-                Building newBuilding = MapBuildingRequestToBuilding(buildingRequest);
+            var newBuilding = MapBuildingRequestToBuilding(buildingRequest);
 
-                var building = await _buildingRepository.CreateAsync(newBuilding);
+            // Encrypt sensitive string before save
+            newBuilding.BuildingName = EncryptionHelper.Encrypt(newBuilding.BuildingName);
 
-                BuildingResponse buildingResponse = MapBuildingToBuildingResponse(building);
-
-                return Ok(buildingResponse);
-            }
-            catch (Exception ex)
-            {
-                return Problem(ex.Message);
-            }
+            var saved = await _buildingRepository.CreateAsync(newBuilding);
+            return Ok(MapBuildingToBuildingResponse(saved));
         }
 
         [Authorize("Admin", "Instruktør", "Drift")]
-        [HttpGet]
-        [Route("{Id}")]
+        [HttpGet("{Id}")]
         public async Task<IActionResult> FindByIdAsync([FromRoute] int Id)
         {
-            try
-            {
-                var building = await _buildingRepository.FindByIdAsync(Id);
-                if (building == null)
-                {
-                    return NotFound(); 
-                }
-
-                return Ok(MapBuildingToBuildingResponse(building));
-            }
-            catch (Exception ex)
-            {
-                return Problem(ex.Message);
-            }
+            var building = await _buildingRepository.FindByIdAsync(Id);
+            if (building is null) return NotFound();
+            return Ok(MapBuildingToBuildingResponse(building));
         }
 
         [Authorize("Admin", "Instruktør", "Drift")]
-        [HttpPut]
-        [Route("{Id}")]
+        [HttpPut("{Id}")]
         public async Task<IActionResult> UpdateByIdAsync([FromRoute] int Id, [FromBody] BuildingRequest buildingRequest)
         {
-            try
-            {
-                var updateBuilding = MapBuildingRequestToBuilding(buildingRequest);
+            var updateBuilding = MapBuildingRequestToBuilding(buildingRequest);
 
-                var building = await _buildingRepository.UpdateByIdAsync(Id, updateBuilding);
+            // Encrypt before save
+            updateBuilding.BuildingName = EncryptionHelper.Encrypt(updateBuilding.BuildingName);
 
-                if (building == null)
-                {
-                    return NotFound(); 
-                }
+            var updated = await _buildingRepository.UpdateByIdAsync(Id, updateBuilding);
+            if (updated is null) return NotFound();
 
-                return Ok(MapBuildingToBuildingResponse(building));
-            }
-            catch (Exception ex)
-            {
-                return Problem(ex.Message);
-            }
+            return Ok(MapBuildingToBuildingResponse(updated));
         }
 
         [Authorize("Admin")]
-        [HttpDelete]
-        [Route("{Id}")]
+        [HttpDelete("{Id}")]
         public async Task<IActionResult> DeleteByIdAsync([FromRoute] int Id)
         {
-            try
-            {
-                var building = await _buildingRepository.DeleteByIdAsync(Id);
-                if (building == null)
-                {
-                    return NotFound(); 
-                }
+            var result = await _buildingRepository.DeleteByIdAsync(Id);
 
-                return Ok(MapBuildingToBuildingResponse(building));
-            }
-            catch (Exception ex)
+            return result.Status switch
             {
-                return Problem(ex.Message);
-            }
+                DeleteStatus.NotFound => NotFound(),
+                DeleteStatus.InUse => Conflict(new
+                {
+                    code = "BUILDING_IN_USE",
+                    message = "Building has rooms and cannot be deleted."
+                }),
+                DeleteStatus.Deleted => Ok(MapBuildingToBuildingResponse(result.Entity!))
+            };
         }
 
         private static BuildingResponse MapBuildingToBuildingResponse(Building building)
         {
-            BuildingResponse response = new BuildingResponse
+            var response = new BuildingResponse
             {
                 Id = building.Id,
-                BuildingName = building.BuildingName,
-                ZipCode = building.Address.ZipCode,
+                BuildingName = SafeDecrypt(building.BuildingName),
+                ZipCode = building.Address?.ZipCode ?? 0,
             };
 
             if (building.Address != null)
@@ -138,9 +104,9 @@ namespace SOP.Controllers
                 {
                     Id = building.Address.Id,
                     ZipCode = building.Address.ZipCode,
-                    City = building.Address.City,
-                    Region = building.Address.Region,
-                    Road = building.Address.Road,
+                    City = SafeDecrypt(building.Address.City),
+                    Region = SafeDecrypt(building.Address.Region),
+                    Road = SafeDecrypt(building.Address.Road),
                 };
             }
 

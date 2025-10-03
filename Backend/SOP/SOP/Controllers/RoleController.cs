@@ -1,12 +1,11 @@
-﻿using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
 using SOP.DTOs;
 using SOP.Entities;
 using SOP.Repositories;
-using System.Data;
 
 namespace SOP.Controllers
 {
-    
     [Route("api/[controller]")]
     [ApiController]
     public class RoleController : ControllerBase
@@ -24,31 +23,24 @@ namespace SOP.Controllers
         {
             try
             {
-                List<Role> role = await _roleRepository.GetAllAsync();
-
-                List<RoleResponse> roleResponses = role.Select(
-                    role => MapRoleToRoleResponse(role)).ToList();
+                var roles = await _roleRepository.GetAllAsync();
+                var roleResponses = roles.Select(MapRoleToRoleResponse).ToList();
                 return Ok(roleResponses);
             }
             catch (Exception ex)
             {
-
                 return Problem(ex.Message);
             }
         }
 
         [Authorize("Admin", "Instruktør", "Drift")]
-        [HttpGet]
-        [Route("{Id}")]
+        [HttpGet("{Id}")]
         public async Task<IActionResult> FindByIdAsync([FromRoute] int Id)
         {
             try
             {
                 var role = await _roleRepository.FindByIdAsync(Id);
-                if (role == null)
-                {
-                    return NotFound();
-                }
+                if (role == null) return NotFound();
 
                 return Ok(MapRoleToRoleResponse(role));
             }
@@ -58,25 +50,53 @@ namespace SOP.Controllers
             }
         }
 
-        private static RoleResponse MapRoleToRoleResponse(Role role)
+        // NEW: Delete with "in-use" guard (maps to 409 Conflict)
+        [Authorize("Admin")]
+        [HttpDelete("{Id}")]
+        public async Task<IActionResult> DeleteByIdAsync([FromRoute] int Id)
         {
-            RoleResponse response = new RoleResponse
+            try
             {
-                Id = role.Id,
-                Name = role.Name,
-                Description = role.Description,
-            };
+                var result = await _roleRepository.DeleteByIdAsync(Id);
 
-            return response;
+                switch (result.Status)
+                {
+                    case DeleteStatus.NotFound:
+                        return NotFound();
+
+                    case DeleteStatus.InUse:
+                        // Role is assigned to one or more users -> 409 Conflict
+                        return Conflict(new
+                        {
+                            message = "Rollen kan ikke slettes, fordi den er i brug af en eller flere brugere."
+                        });
+
+                    case DeleteStatus.Deleted:
+                        // Return the deleted role (mapped to DTO)
+                        return Ok(MapRoleToRoleResponse(result.Entity!));
+
+                    default:
+                        // Fallback (shouldn't happen)
+                        return Problem("Ukendt sletningsstatus.");
+                }
+            }
+            catch (Exception ex)
+            {
+                return Problem(ex.Message);
+            }
         }
 
-        private static Role MapRoleRequestToRole(RoleRequest roleRequest)
+        private static RoleResponse MapRoleToRoleResponse(Role role) => new RoleResponse
         {
-            return new Role
-            {
-                Name = roleRequest.Name,
-                Description = roleRequest.Description,
-            };
-        }
+            Id = role.Id,
+            Name = role.Name,
+            Description = role.Description,
+        };
+
+        private static Role MapRoleRequestToRole(RoleRequest roleRequest) => new Role
+        {
+            Name = roleRequest.Name,
+            Description = roleRequest.Description,
+        };
     }
 }

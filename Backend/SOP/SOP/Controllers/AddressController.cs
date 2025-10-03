@@ -3,7 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using SOP.DTOs;
 using SOP.Entities;
 using SOP.Repositories;
-using System.Net;
+using SOP.Encryption; 
 
 namespace SOP.Controllers
 {
@@ -18,127 +18,91 @@ namespace SOP.Controllers
             _addressRepository = adressRepository;
         }
 
+        private static string? SafeDecrypt(string? v)
+        {
+            if (string.IsNullOrWhiteSpace(v)) return v;
+            try { return EncryptionHelper.Decrypt(v); }
+            catch { return v; }
+        }
+
         [Authorize("Admin", "Instruktør", "Drift")]
         [HttpGet]
         public async Task<IActionResult> GetAllAsync()
         {
-            try
-            {
-                List<Address> address = await _addressRepository.GetAllAsync();
-
-                List<AddressResponse> addressResponses = address.Select(
-                    address => MapAddressToAddressResponse(address)).ToList();
-                
-                return Ok(addressResponses);
-            }
-            catch (Exception ex)
-            {
-
-                return Problem(ex.Message);
-            }
+            var addresses = await _addressRepository.GetAllAsync();
+            var dto = addresses.Select(MapAddressToAddressResponse).ToList();
+            return Ok(dto);
         }
 
         [Authorize("Admin", "Instruktør", "Drift")]
         [HttpPost]
         public async Task<IActionResult> CreateAsync([FromBody] AddressRequest addressRequest)
         {
-            try
-            {
-                Address newAddress = MapAddressRequestToAddress(addressRequest);
+            var newAddress = MapAddressRequestToAddress(addressRequest);
 
-                var address = await _addressRepository.CreateAsync(newAddress);
+            // encrypt PII-ish strings
+            newAddress.City = EncryptionHelper.Encrypt(newAddress.City);
+            newAddress.Region = EncryptionHelper.Encrypt(newAddress.Region);
+            newAddress.Road = EncryptionHelper.Encrypt(newAddress.Road);
 
-                AddressResponse addressResponse = MapAddressToAddressResponse(address);
-
-                return Ok(addressResponse);
-            }
-            catch (Exception ex)
-            {
-                return Problem(ex.Message);
-            }
+            var saved = await _addressRepository.CreateAsync(newAddress);
+            return Ok(MapAddressToAddressResponse(saved));
         }
 
         [Authorize("Admin", "Instruktør", "Drift")]
-        [HttpGet]
-        [Route("{Id}")]
+        [HttpGet("{Id}")]
         public async Task<IActionResult> FindByIdAsync([FromRoute] int Id)
         {
-            try
-            {
-                var address = await _addressRepository.FindByIdAsync(Id);
-
-                if (address == null)
-                {
-                    return NotFound(); 
-                }
-
-                return Ok(MapAddressToAddressResponse(address));
-            }
-            catch (Exception ex)
-            {
-                return Problem(ex.Message);
-            }
+            var address = await _addressRepository.FindByIdAsync(Id);
+            if (address is null) return NotFound();
+            return Ok(MapAddressToAddressResponse(address));
         }
 
         [Authorize("Admin", "Instruktør", "Drift")]
-
-        [HttpPut]
-        [Route("{Id}")]
+        [HttpPut("{Id}")]
         public async Task<IActionResult> UpdateByIdAsync([FromRoute] int Id, [FromBody] AddressRequest addressRequest)
         {
-            try
-            {
-                var updateAddress = MapAddressRequestToAddress(addressRequest);
+            var updateAddress = MapAddressRequestToAddress(addressRequest);
 
-                var address = await _addressRepository.UpdateByIdAsync(Id, updateAddress);
+            // encrypt PII-ish strings
+            updateAddress.City = EncryptionHelper.Encrypt(updateAddress.City);
+            updateAddress.Region = EncryptionHelper.Encrypt(updateAddress.Region);
+            updateAddress.Road = EncryptionHelper.Encrypt(updateAddress.Road);
 
-                if (address == null)
-                {
-                    return NotFound(); 
-                }
+            var updated = await _addressRepository.UpdateByIdAsync(Id, updateAddress);
+            if (updated is null) return NotFound();
 
-                return Ok(MapAddressToAddressResponse(address));
-            }
-            catch (Exception ex)
-            {
-                return Problem(ex.Message);
-            }
+            return Ok(MapAddressToAddressResponse(updated));
         }
 
         [Authorize("Admin")]
-        [HttpDelete]
-        [Route("{Id}")]
+        [HttpDelete("{Id}")]
         public async Task<IActionResult> DeleteByIdAsync([FromRoute] int Id)
         {
-            try
-            {
-                var address = await _addressRepository.DeleteByIdAsync(Id);
+            var result = await _addressRepository.DeleteByIdAsync(Id);
 
-                if (address == null)
+            return result.Status switch
+            {
+                DeleteStatus.NotFound => NotFound(),
+                DeleteStatus.InUse => Conflict(new
                 {
-                    return NotFound(); 
-                }
-
-                return Ok(MapAddressToAddressResponse(address));
-            }
-            catch (Exception ex)
-            {
-                return Problem(ex.Message);
-            }
+                    code = "ADDRESS_IN_USE",
+                    message = "Address is referenced by one or more buildings and cannot be deleted."
+                }),
+                DeleteStatus.Deleted => Ok(MapAddressToAddressResponse(result.Entity!))
+            };
         }
 
         private static AddressResponse MapAddressToAddressResponse(Address address)
         {
-            AddressResponse response = new AddressResponse
+            return new AddressResponse
             {
                 Id = address.Id,
                 ZipCode = address.ZipCode,
-                Region = address.Region,
-                City = address.City,
-                Road = address.Road,
+                Region = SafeDecrypt(address.Region),
+                City = SafeDecrypt(address.City),
+                Road = SafeDecrypt(address.Road),
             };
-
-            return response;
         }
 
         private static Address MapAddressRequestToAddress(AddressRequest addressRequest)

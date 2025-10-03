@@ -4,13 +4,16 @@ using SOP.Entities;
 
 namespace SOP.Repositories
 {
+
+
     public interface IAddressRepository
     {
         Task<List<Address>> GetAllAsync();
         Task<Address> CreateAsync(Address address);
         Task<Address> FindByIdAsync(int id);
         Task<Address> UpdateByIdAsync(int id, Address address);
-        Task<Address> DeleteByIdAsync(int id);
+        //Task<Address> DeleteByIdAsync(int id);
+        Task<DeleteResult<Address>> DeleteByIdAsync(int id);
     }
     public class AddressRepository : IAddressRepository
     {
@@ -60,16 +63,38 @@ namespace SOP.Repositories
             return address;
         }
 
-        public async Task<Address> DeleteByIdAsync(int addressId)
-        {
-            var address = await FindByIdAsync(addressId);
-            if (address != null)
-            {
-                _context.Address.Remove(address);
+        //public async Task<Address> DeleteByIdAsync(int addressId)
+        //{
+        //    var address = await FindByIdAsync(addressId);
+        //    if (address != null)
+        //    {
+        //        _context.Address.Remove(address);
 
-                await _context.SaveChangesAsync();
+        //        await _context.SaveChangesAsync();
+        //    }
+        //    return address;
+        //}
+
+        public async Task<DeleteResult<Address>> DeleteByIdAsync(int id)
+        {
+            // Not found ?
+            var address = await _context.Address.FindAsync(id);
+            if (address is null)
+            {
+                return DeleteResult<Address>.InUse(address);
             }
-            return address;
+
+            // In use by any buidling?
+            var inUse = await _context.Building.AnyAsync(b => b.AddressId == id);
+            if (inUse)
+            {
+                return DeleteResult<Address>.InUse(address);
+            }
+
+            // Safe to remove
+            _context.Address.Remove(address);
+            await _context.SaveChangesAsync();
+            return DeleteResult<Address>.Deleted(address);
         }
     }
 }

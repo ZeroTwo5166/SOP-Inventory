@@ -8,21 +8,20 @@ namespace SOP.Repositories
     {
         Task<ComputerPart> CreateAsync(ComputerPart newComputerPart);
         Task<ComputerPart?> UpdateByIdAsync(int computerPartId, ComputerPart updateComputerPart);
-        Task<ComputerPart?> DeleteByIdAsync(int computerPartId);
+        Task<DeleteResult<ComputerPart>> DeleteByIdAsync(int computerPartId);
         Task<ComputerPart?> FindByIdAsync(int computerPartId);
         Task<List<ComputerPart>> GetAllAsync();
     }
+
     public class ComputerPartRepository : IComputerPartRepository
     {
         private readonly DatabaseContext _context;
 
-        // Initializes the repository with the database context for accessing data
         public ComputerPartRepository(DatabaseContext context)
         {
             _context = context;
         }
 
-        // Adds a new ComputerPart, saves changes, retrieves, and returns it
         public async Task<ComputerPart> CreateAsync(ComputerPart newComputerPart)
         {
             _context.ComputerPart.Add(newComputerPart);
@@ -31,41 +30,46 @@ namespace SOP.Repositories
             return newComputerPart;
         }
 
-        // Finds and deletes a ComputerPart by ID, then saves changes and returns it
-        public async Task<ComputerPart?> DeleteByIdAsync(int computerPartId)
+        public async Task<DeleteResult<ComputerPart>> DeleteByIdAsync(int computerPartId)
         {
-            var computerPart = await FindByIdAsync(computerPartId);
-            if (computerPart != null)
+            var part = await FindByIdAsync(computerPartId);
+            if (part == null)
             {
-                _context.ComputerPart.Remove(computerPart);
-                await _context.SaveChangesAsync();
+                return DeleteResult<ComputerPart>.NotFound();
             }
-            return computerPart;
+
+            // In-use guard: block if this part is linked to a computer via the join row
+            var inUse = await _context.Computer_ComputerPart
+                .AnyAsync(j => j.ComputerPartId == computerPartId);
+
+            if (inUse)
+            {
+                return DeleteResult<ComputerPart>.InUse(part);
+            }
+
+            _context.ComputerPart.Remove(part);
+            await _context.SaveChangesAsync();
+            return DeleteResult<ComputerPart>.Deleted(part);
         }
 
-        // Please refer to the class diagram or ER diagram for entity relationships
-        // Finds a ComputerPart by ID, including related entities and returns it
         public async Task<ComputerPart?> FindByIdAsync(int computerPartId)
         {
             return await _context.ComputerPart
                 .Include(cp => cp.PartGroup)
-                .ThenInclude(cp => cp.PartType)
+                .ThenInclude(pg => pg.PartType)
                 .Include(cp => cp.Computer_ComputerPart)
                 .FirstOrDefaultAsync(cp => cp.Id == computerPartId);
         }
 
-        // Please refer to the class diagram or ER diagram for entity relationships
-        // Retrieves all ComputerParts, including related entities and returns them
         public async Task<List<ComputerPart>> GetAllAsync()
         {
             return await _context.ComputerPart
                 .Include(cp => cp.PartGroup)
-                .ThenInclude(cp => cp.PartType)
+                .ThenInclude(pg => pg.PartType)
                 .Include(cp => cp.Computer_ComputerPart)
                 .ToListAsync();
         }
 
-        // Updates a ComputerPart by ID and returns the updated entity. 
         public async Task<ComputerPart?> UpdateByIdAsync(int computerPartId, ComputerPart updateComputerPart)
         {
             var computerPart = await FindByIdAsync(computerPartId);

@@ -7,8 +7,8 @@ namespace SOP.Repositories
     public interface IComputerRepository
     {
         Task<Computer> CreateAsync(Computer newComputer);
-        Task<Computer?> DeleteByIdAsync(int computerId);
-        Task<Computer?> DeleteComputerAndItemByIdAsync(int computerId);
+        Task<DeleteResult<Computer>> DeleteByIdAsync(int computerId);
+        Task<DeleteResult<Computer>> DeleteComputerAndItemByIdAsync(int computerId);
         Task<Computer?> FindByIdAsync(int computerId);
         Task<List<Computer>> GetAllAsync();
     }
@@ -32,27 +32,61 @@ namespace SOP.Repositories
         }
 
         // Finds and deletes a Computer by ID, then saves changes and returns it
-        public async Task<Computer?> DeleteByIdAsync(int computerId)
+        public async Task<DeleteResult<Computer?>> DeleteByIdAsync(int computerId)
         {
             var computer = await FindByIdAsync(computerId);
-            if (computer != null)
-            {
-                _context.Computer.Remove(computer);
-                await _context.SaveChangesAsync();
-            }
-            return computer;
+            if (computer is null)
+                return DeleteResult<Computer>.NotFound();
+
+            // Guard: refuse delete if this computer still has parts
+            var hasParts = await _context.Computer_ComputerPart.AnyAsync(j => j.ComputerId == computerId);
+            if (hasParts)
+                return DeleteResult<Computer>.InUse(computer);
+
+            _context.Computer.Remove(computer);
+            await _context.SaveChangesAsync();
+            return DeleteResult<Computer>.Deleted(computer);
         }
 
-        public async Task<Computer?> DeleteComputerAndItemByIdAsync(int computerId)
+        public async Task<DeleteResult<Computer>> DeleteComputerAndItemByIdAsync(int computerId)
         {
-            var computer = await FindByIdAsync(computerId);
-            if (computer != null)
+            // Load with Item for the combined delete
+            var computer = await _context.Computer
+                .Include(c => c.Item)
+                .FirstOrDefaultAsync(c => c.Id == computerId);
+
+            if (computer is null)
+                return DeleteResult<Computer>.NotFound();
+
+            // 1) Block if still has parts
+            var hasParts = await _context.Computer_ComputerPart.AnyAsync(j => j.ComputerId == computerId);
+            if (hasParts)
+                return DeleteResult<Computer>.InUse(computer);
+
+            // 2) Block if the item is currently loaned out
+            // (Computer.Id == Item.Id by model, so use computerId)
+            var hasActiveLoan = await _context.Loan.AnyAsync(l => l.ItemId == computerId && l.ReturnDate == null);
+            if (hasActiveLoan)
+                return DeleteResult<Computer>.InUse(computer);
+
+            using var tx = await _context.Database.BeginTransactionAsync();
+            try
             {
-                _context.Item.Remove(computer.Item);
+                if (computer.Item is not null)
+                    _context.Item.Remove(computer.Item);
+
                 _context.Computer.Remove(computer);
+
                 await _context.SaveChangesAsync();
+                await tx.CommitAsync();
             }
-            return computer;
+            catch
+            {
+                await tx.RollbackAsync();
+                throw;
+            }
+
+            return DeleteResult<Computer>.Deleted(computer);
         }
 
         // Please refer to the class diagram or ER diagram for entity relationships

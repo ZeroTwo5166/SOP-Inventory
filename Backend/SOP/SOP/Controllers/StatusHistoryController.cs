@@ -16,6 +16,13 @@ namespace SOP.Controllers
             _statusHistoryRepository = statusHistoryRepository;
         }
 
+        private static string? SafeDecrypt(string? v)
+        {
+            if (string.IsNullOrWhiteSpace(v)) return v;
+            try { return EncryptionHelper.Decrypt(v); }
+            catch { return v; }
+        }
+
         [Authorize("Admin", "Instruktør", "Drift")]
         [HttpGet]
         public async Task<IActionResult> GetAllAsync()
@@ -42,6 +49,9 @@ namespace SOP.Controllers
             try
             {
                 StatusHistory newStatusHistory = MapStatusHistoryRequestToStatusHistory(statusHistoryRequest);
+
+                // Encrypt note before save
+                newStatusHistory.Note = EncryptionHelper.Encrypt(newStatusHistory.Note);
 
                 var statusHistory = await _statusHistoryRepository.CreateAsync(newStatusHistory);
 
@@ -85,6 +95,9 @@ namespace SOP.Controllers
             {
                 var updateStatusHistory = MapStatusHistoryRequestToStatusHistory(statusHistoryRequest);
 
+                //Encrypt before saving
+                updateStatusHistory.Note = EncryptionHelper.Encrypt(updateStatusHistory.Note);
+
                 var statusHistory = await _statusHistoryRepository.UpdateByIdAsync(Id, updateStatusHistory);
 
                 if (statusHistory == null)
@@ -103,32 +116,38 @@ namespace SOP.Controllers
 
         private StatusHistoryResponse MapStatusHistoryToStatusHistoryResponse(StatusHistory statusHistory)
         {
-            StatusHistoryResponse response = new StatusHistoryResponse
+            var response = new StatusHistoryResponse
             {
                 Id = statusHistory.Id,
                 ItemId = statusHistory.ItemId,
                 StatusId = statusHistory.StatusId,
                 StatusUpdateDate = statusHistory.StatusUpdateDate,
-                Note = statusHistory.Note
+                // decrypt the free-text note
+                Note = SafeDecrypt(statusHistory.Note)
             };
-            if(statusHistory.Status != null)
+
+            if (statusHistory.Status != null)
             {
                 response.Status = new StatusHistoryStatusResponse
                 {
                     Id = statusHistory.Status.Id,
+                    // if you later encrypt Status.Name, switch to SafeDecrypt here too
                     Name = statusHistory.Status.Name
                 };
             }
-            if(statusHistory.Item != null)
+
+            if (statusHistory.Item != null)
             {
                 response.Item = new StatusItemResponse
                 {
                     Id = statusHistory.Item.Id,
                     RoomId = statusHistory.Item.RoomId,
                     ItemGroupId = statusHistory.Item.ItemGroupId,
-                    SerialNumber = statusHistory.Item.SerialNumber,
+                    // Item.SerialNumber is encrypted in ItemController, so decrypt here
+                    SerialNumber = SafeDecrypt(statusHistory.Item.SerialNumber),
                 };
             }
+
             return response;
         }
 
@@ -138,9 +157,11 @@ namespace SOP.Controllers
             {
                 ItemId = statusHistoryRequest.ItemId,
                 StatusId = statusHistoryRequest.StatusId,
-                StatusUpdateDate= statusHistoryRequest.StatusUpdateDate,
-                Note= statusHistoryRequest.Note
+                StatusUpdateDate = statusHistoryRequest.StatusUpdateDate,
+                // keep plaintext here; encrypt on write in Create/Update actions
+                Note = statusHistoryRequest.Note
             };
         }
+
     }
 }

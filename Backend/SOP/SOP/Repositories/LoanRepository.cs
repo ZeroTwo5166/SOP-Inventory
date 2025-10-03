@@ -4,13 +4,15 @@ using SOP.Entities;
 
 namespace SOP.Repositories
 {
+
+
     public interface ILoanRepository
     {
         Task<List<Loan>> GetAllAsync();
         Task<Loan> CreateAsync(Loan loan);
         Task<Loan> FindByIdAsync(int id);
         Task<Loan> UpdateByIdAsync(int id, Loan loan);
-        Task<Archive_Loan> ArchiveByIdAsync(int id, string archiveNote);
+        Task<ArchiveResult<Archive_Loan>> ArchiveByIdAsync(int id, string archiveNote);
     }
     public class LoanRepository : ILoanRepository
     {
@@ -62,30 +64,45 @@ namespace SOP.Repositories
             return loan;
         }
 
-        public async Task<Archive_Loan> ArchiveByIdAsync(int loanId, string archiveNote)
+        // Only archive returned loans. Active loans (ReturnDate == null) are "in use".
+
+        public async Task<ArchiveResult<Archive_Loan>> ArchiveByIdAsync(int loanId, string archiveNote)
         {
             var loan = await FindByIdAsync(loanId);
-            if (loan == null)
-            {
-                return null;
-            }
-            Archive_Loan archiveLoan = new Archive_Loan
+            if (loan is null)
+                return ArchiveResult<Archive_Loan>.NotFound();
+
+            var isActive = loan.ReturnDate == null;
+            if (isActive)
+                return ArchiveResult<Archive_Loan>.InUse(null);
+
+            var now = DateTime.UtcNow;
+            var archiveLoan = new Archive_Loan
             {
                 Id = loan.Id,
-                DeleteTime = DateTime.Now,
+                DeleteTime = now,
                 UserId = loan.UserId,
                 ItemId = loan.ItemId,
                 LoanDate = loan.LoanDate,
                 ReturnDate = loan.ReturnDate,
                 ArchiveNote = archiveNote,
             };
-            if (loan != null)
+
+            using var tx = await _context.Database.BeginTransactionAsync();
+            try
             {
                 _context.Archive_Loan.Add(archiveLoan);
                 _context.Loan.Remove(loan);
                 await _context.SaveChangesAsync();
+                await tx.CommitAsync();
             }
-            return archiveLoan;
+            catch
+            {
+                await tx.RollbackAsync();
+                throw;
+            }
+
+            return ArchiveResult<Archive_Loan>.Archived(archiveLoan);
         }
     }
 }

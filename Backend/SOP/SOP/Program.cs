@@ -4,8 +4,11 @@ using SOP.Database;
 using SOP.Helpers;
 using Microsoft.AspNetCore.Authentication;
 using SOP.Archive.Repository;
+using System.Threading.RateLimiting;
 
 var builder = WebApplication.CreateBuilder(args);
+Console.WriteLine("Effective conn: " + builder.Configuration.GetConnectionString("Default"));
+
 
 // Add services to the container.
 builder.Services.AddScoped<IAddressRepository, AddressRepository>();
@@ -32,6 +35,31 @@ builder.Services.AddScoped<IArchive_LoanRepository, Archive_LoanRepository>();
 builder.Services.AddScoped<IArchive_RequestRepository, Archive_RequestRepository>();
 builder.Services.AddScoped<IArchive_UserRepository, Archive_UserRepository>();
 builder.Services.AddScoped<IJwtUtils, JwtUtils>();
+
+// Load encrpyption keys
+var publicPem = builder.Configuration["AppSecrets:RsaPublicPem"];
+var privatePem = builder.Configuration["AppSecrets:RsaPrivatePem"];
+SOP.Encryption.EncryptionHelper.SetRsaPublicKeyPem(publicPem);
+SOP.Encryption.EncryptionHelper.SetRsaPrivateKeyPem(privatePem);
+
+// added code
+static string? ReadPemOrNull(string? v)
+{
+    if (string.IsNullOrWhiteSpace(v)) return null;
+    // If it's a file path, read it
+    if (File.Exists(v)) v = File.ReadAllText(v);
+    // Only accept real PEM content
+    if (v.Contains("BEGIN PUBLIC KEY") || v.Contains("BEGIN RSA PUBLIC KEY") || v.Contains("BEGIN PRIVATE KEY") || v.Contains("BEGIN RSA PRIVATE KEY"))
+        return v;
+    return null;
+}
+
+publicPem = ReadPemOrNull(publicPem);
+privatePem = ReadPemOrNull(privatePem);
+
+if (!string.IsNullOrWhiteSpace(publicPem)) EncryptionHelper.SetRsaPublicKeyPem(publicPem);
+if (!string.IsNullOrWhiteSpace(privatePem)) EncryptionHelper.SetRsaPrivateKeyPem(privatePem);
+
 
 // Load configuration settings from appsettings.json and appsettings.Local.json (if available)
 builder.Configuration
@@ -90,6 +118,9 @@ builder.Services.AddSwaggerGen(c =>
 
 // Adds controllers
 builder.Services.AddControllers();
+
+
+
 
 // Builds app
 var app = builder.Build();

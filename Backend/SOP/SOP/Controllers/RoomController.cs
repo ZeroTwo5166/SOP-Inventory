@@ -1,7 +1,9 @@
-﻿using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
 using SOP.DTOs;
 using SOP.Entities;
 using SOP.Repositories;
+using SOP.Encryption;
 
 namespace SOP.Controllers
 {
@@ -16,114 +18,71 @@ namespace SOP.Controllers
             _roomRepository = roomRepository;
         }
 
+        private static string? SafeDecrypt(string? v)
+        {
+            if (string.IsNullOrWhiteSpace(v)) return v;
+            try { return EncryptionHelper.Decrypt(v); }
+            catch { return v; }
+        }
+
         [Authorize("Admin", "Instruktør", "Drift")]
         [HttpGet]
         public async Task<IActionResult> GetAllAsync()
         {
-            try
-            {
-                List<Room> room = await _roomRepository.GetAllAsync();
-
-                List<RoomResponse> roomResponses = room.Select(
-                    room => MapRoomToRoomResponse(room)).ToList();
-                return Ok(roomResponses);
-            }
-            catch (Exception ex)
-            {
-
-                return Problem(ex.Message);
-            }
+            var rooms = await _roomRepository.GetAllAsync();
+            var dto = rooms.Select(MapRoomToRoomResponse).ToList();
+            return Ok(dto);
         }
 
         [Authorize("Admin", "Instruktør", "Drift")]
         [HttpPost]
         public async Task<IActionResult> CreateAsync([FromBody] RoomRequest roomRequest)
         {
-            try
-            {
-                Room newRoom = MapRoomRequestToRoom(roomRequest);
-
-                var room = await _roomRepository.CreateAsync(newRoom);
-
-                RoomResponse roomResponse = MapRoomToRoomResponse(room);
-
-                return Ok(roomResponse);
-            }
-            catch (Exception ex)
-            {
-                return Problem(ex.Message);
-            }
+            var newRoom = MapRoomRequestToRoom(roomRequest);
+            var saved = await _roomRepository.CreateAsync(newRoom);
+            return Ok(MapRoomToRoomResponse(saved));
         }
 
         [Authorize("Admin", "Instruktør", "Drift")]
-        [HttpGet]
-        [Route("{Id}")]
+        [HttpGet("{Id}")]
         public async Task<IActionResult> FindByIdAsync([FromRoute] int Id)
         {
-            try
-            {
-                var room = await _roomRepository.FindByIdAsync(Id);
-                if (room == null)
-                {
-                    return NotFound(); 
-                }
-
-                return Ok(MapRoomToRoomResponse(room));
-            }
-            catch (Exception ex)
-            {
-                return Problem(ex.Message);
-            }
+            var room = await _roomRepository.FindByIdAsync(Id);
+            if (room is null) return NotFound();
+            return Ok(MapRoomToRoomResponse(room));
         }
 
         [Authorize("Admin", "Instruktør", "Drift")]
-        [HttpPut]
-        [Route("{Id}")]
+        [HttpPut("{Id}")]
         public async Task<IActionResult> UpdateByIdAsync([FromRoute] int Id, [FromBody] RoomRequest roomRequest)
         {
-            try
-            {
-                var updateRoom = MapRoomRequestToRoom(roomRequest);
-
-                var room = await _roomRepository.UpdateByIdAsync(Id, updateRoom);
-
-                if (room == null)
-                {
-                    return NotFound();
-                }
-
-                return Ok(MapRoomToRoomResponse(room));
-            }
-            catch (Exception ex)
-            {
-                return Problem(ex.Message);
-            }
+            var updateRoom = MapRoomRequestToRoom(roomRequest);
+            var updated = await _roomRepository.UpdateByIdAsync(Id, updateRoom);
+            if (updated is null) return NotFound();
+            return Ok(MapRoomToRoomResponse(updated));
         }
 
         [Authorize("Admin")]
-        [HttpDelete]
-        [Route("{Id}")]
+        [HttpDelete("{Id}")]
         public async Task<IActionResult> DeleteByIdAsync([FromRoute] int Id)
         {
-            try
-            {
-                var room = await _roomRepository.DeleteByIdAsync(Id);
-                if (room == null)
-                {
-                    return NotFound();
-                }
+            var result = await _roomRepository.DeleteByIdAsync(Id);
 
-                return Ok(MapRoomToRoomResponse(room));
-            }
-            catch (Exception ex)
+            return result.Status switch
             {
-                return Problem(ex.Message);
-            }
+                DeleteStatus.NotFound => NotFound(),
+                DeleteStatus.InUse => Conflict(new
+                {
+                    code = "ROOM_IN_USE",
+                    message = "Room contains items and cannot be deleted."
+                }),
+                DeleteStatus.Deleted => Ok(MapRoomToRoomResponse(result.Entity!))
+            };
         }
 
         private static RoomResponse MapRoomToRoomResponse(Room room)
         {
-            RoomResponse response = new RoomResponse
+            var response = new RoomResponse
             {
                 Id = room.Id,
                 BuildingId = room.BuildingId,
@@ -135,7 +94,7 @@ namespace SOP.Controllers
                 response.Building = new BuildingRoomResponse
                 {
                     Id = room.Building.Id,
-                    BuildingName = room.Building.BuildingName,
+                    BuildingName = SafeDecrypt(room.Building.BuildingName),
                     AddressId = room.Building.AddressId,
                 };
 
@@ -144,9 +103,9 @@ namespace SOP.Controllers
                     response.Building.buildingAddress = new RoomAddressResponse
                     {
                         ZipCode = room.Building.Address.ZipCode,
-                        Region = room.Building.Address.Region,
-                        City = room.Building.Address.City,
-                        Road = room.Building.Address.Road,
+                        Region = SafeDecrypt(room.Building.Address.Region),
+                        City = SafeDecrypt(room.Building.Address.City),
+                        Road = SafeDecrypt(room.Building.Address.Road),
                     };
                 }
             }

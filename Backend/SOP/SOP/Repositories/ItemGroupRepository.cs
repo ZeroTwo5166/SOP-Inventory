@@ -10,7 +10,7 @@ namespace SOP.Repositories
         Task<ItemGroup?> FindByIdAsync(int itemGroupId);
         Task<ItemGroup?> UpdateByIdAsync(int itemGroupId, ItemGroup updateItemGroup);
         Task<List<ItemGroup>> GetAllAsync();
-        Task<Archive_ItemGroup> ArchiveByIdAsync(int itemGroupId, string archiveNote);
+        Task<ArchiveResult<Archive_ItemGroup>> ArchiveByIdAsync(int itemGroupId, string archiveNote);
     }
 
     public class ItemGroupRepository : IItemGroupRepository
@@ -68,17 +68,32 @@ namespace SOP.Repositories
                 .ToListAsync();
         }
 
-        // Archive an ItemGroup by ID, including all associated items
-        public async Task<Archive_ItemGroup> ArchiveByIdAsync(int itemGroupId, string archiveNote)
+        // Archive an ItemGroup by ID, including all associated items (and status histories),
+        // but block if any item is "in use" (active loan or bound Computer)
+        public async Task<ArchiveResult<Archive_ItemGroup>> ArchiveByIdAsync(int itemGroupId, string archiveNote)
         {
-            ItemGroup itemGroup = await FindByIdAsync(itemGroupId);
+            var itemGroup = await FindByIdAsync(itemGroupId);
+            if (itemGroup is null)
+                return ArchiveResult<Archive_ItemGroup>.NotFound();
 
-            if (itemGroup == null)
-            {
-                return null;
-            }
+            // (optional but recommended) block if any item is "in use"
+            var itemIdsQuery = _context.Item
+                .Where(i => i.ItemGroupId == itemGroupId)
+                .Select(i => i.Id);
 
-            List<Item> itemsToArchive = await _context.Item
+            var hasActiveLoans = await _context.Loan
+                .AnyAsync(l => l.ReturnDate == null && itemIdsQuery.Contains(l.ItemId));
+            if (hasActiveLoans)
+                return ArchiveResult<Archive_ItemGroup>.InUse(null);
+
+            var hasComputers = await _context.Computer
+                .AnyAsync(c => itemIdsQuery.Contains(c.Id));
+            if (hasComputers)
+                return ArchiveResult<Archive_ItemGroup>.InUse(null);
+
+            // Archive all items in the group first
+            var itemsToArchive = await _context.Item
+                .Include(item => item.StatusHistories)
                 .Where(item => item.ItemGroupId == itemGroupId)
                 .ToListAsync();
 
@@ -87,7 +102,7 @@ namespace SOP.Repositories
                 await ArchiveItem(item, archiveNote);
             }
 
-            Archive_ItemGroup archiveItemGroup = new Archive_ItemGroup
+            var archiveItemGroup = new Archive_ItemGroup
             {
                 Id = itemGroup.Id,
                 DeleteTime = DateTime.Now,
@@ -103,8 +118,10 @@ namespace SOP.Repositories
             _context.Archive_ItemGroup.Add(archiveItemGroup);
             _context.ItemGroup.Remove(itemGroup);
             await _context.SaveChangesAsync();
-            return archiveItemGroup;
+
+            return ArchiveResult<Archive_ItemGroup>.Archived(archiveItemGroup);
         }
+
 
         private async Task ArchiveItem(Item item, string archiveNote)
         {

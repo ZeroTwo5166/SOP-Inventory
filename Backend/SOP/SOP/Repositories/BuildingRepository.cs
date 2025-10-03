@@ -4,13 +4,15 @@ using SOP.Entities;
 
 namespace SOP.Repositories
 {
+
     public interface IBuildingRepository
     {
         Task<List<Building>> GetAllAsync();
         Task<Building> CreateAsync(Building building);
         Task<Building> FindByIdAsync(int id);
         Task<Building> UpdateByIdAsync(int id, Building building);
-        Task<Building> DeleteByIdAsync(int id);
+        Task<DeleteResult<Building>> DeleteByIdAsync(int id);
+
     }
     public class BuildingRepository : IBuildingRepository
     {
@@ -62,15 +64,41 @@ namespace SOP.Repositories
             return building;
         }
 
-        public async Task<Building> DeleteByIdAsync(int buildingId)
+        //public async Task<Building> DeleteByIdAsync(int buildingId)
+        //{
+        //    var building = await FindByIdAsync(buildingId);
+        //    if (building != null)
+        //    {
+        //        _context.Building.Remove(building);
+        //        await _context.SaveChangesAsync();
+        //    }
+        //    return building;
+        //}
+
+        public async Task<DeleteResult<Building>> DeleteByIdAsync(int id)
         {
-            var building = await FindByIdAsync(buildingId);
-            if (building != null)
+            // Load (with Address for nicer response)
+            var building = await _context.Building
+                .Include(b => b.Address)
+                .FirstOrDefaultAsync(b => b.Id == id);
+
+            if (building is null)
             {
-                _context.Building.Remove(building);
-                await _context.SaveChangesAsync();
+                return DeleteResult<Building>.NotFound();
             }
-            return building;
+
+            // Guard: block delete if the building still has rooms
+            var hasRooms = await _context.Room.AnyAsync(r => r.BuildingId == id);
+            if (hasRooms)
+            {
+                return DeleteResult<Building>.InUse(building);
+
+            }
+
+            _context.Building.Remove(building);
+            await _context.SaveChangesAsync();
+            return DeleteResult<Building>.Deleted(building);
+
         }
     }
 }

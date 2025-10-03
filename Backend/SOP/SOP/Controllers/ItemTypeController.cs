@@ -1,6 +1,9 @@
 ﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
 using SOP.Archive.DTOs;
 using SOP.Entities;
+using SOP.Repositories;
+using SOP.Encryption;
 
 namespace SOP.Controllers
 {
@@ -15,6 +18,12 @@ namespace SOP.Controllers
             _itemTypeRepository = itemTypeRepository;
         }
 
+        private static string? SafeDecrypt(string? v)
+        {
+            if (string.IsNullOrWhiteSpace(v)) return v;
+            try { return EncryptionHelper.Decrypt(v); } catch { return v; }
+        }
+
         [Authorize("Admin", "Instruktør", "Drift")]
         [HttpGet]
         public async Task<IActionResult> GetAllAsync()
@@ -23,8 +32,9 @@ namespace SOP.Controllers
             {
                 var itemTypes = await _itemTypeRepository.GetAllAsync();
 
-                List<ItemTypeResponse> itemTypeResponses = itemTypes.Select(
-                    itemType => MapItemTypeToItemTypeResponse(itemType)).ToList();
+                var itemTypeResponses = itemTypes
+                    .Select(itemType => MapItemTypeToItemTypeResponse(itemType))
+                    .ToList();
 
                 return Ok(itemTypeResponses);
             }
@@ -40,11 +50,11 @@ namespace SOP.Controllers
         {
             try
             {
-                ItemType newItemType = MapItemTypeRequestToItemType(itemTypeRequest);
+                var newItemType = MapItemTypeRequestToItemType(itemTypeRequest);
 
                 var itemType = await _itemTypeRepository.CreateAsync(newItemType);
 
-                ItemTypeResponse itemTypeResponse = MapItemTypeToItemTypeResponse(itemType);
+                var itemTypeResponse = MapItemTypeToItemTypeResponse(itemType);
 
                 return Ok(itemTypeResponse);
             }
@@ -75,6 +85,7 @@ namespace SOP.Controllers
             }
         }
 
+        // Archive is guarded in the repository: returns NotFound / InUse / Archived
         [Authorize("Admin", "Drift")]
         [HttpDelete]
         [Route("ArchiveById/{Id}")]
@@ -82,22 +93,38 @@ namespace SOP.Controllers
         {
             try
             {
-                string archiveNote = archiveNoteRequest.ArchiveNote;
-                var itemType = await _itemTypeRepository.ArchiveByIdAsync(Id, archiveNote);
-                if (itemType == null)
+                var encryptedNote = EncryptionHelper.Encrypt(archiveNoteRequest.ArchiveNote);
+
+                var result = await _itemTypeRepository.ArchiveByIdAsync(Id, encryptedNote);
+
+                switch (result.Status)
                 {
-                    return NotFound();
+                    case ArchiveStatus.NotFound:
+                        return NotFound();
+
+                    case ArchiveStatus.InUse:
+                        // Block because there are ItemGroups/Items still referencing this ItemType
+                        return Conflict(new
+                        {
+                            message = "Cannot archive ItemType because it is in use by one or more ItemGroups/Items.",
+                            code = "IN_USE",
+                            blockedBy = new[] { "ItemGroup", "Item" }
+                        });
+
+                    case ArchiveStatus.Archived:
+                        var entity = result.Entity!;
+                        var response = new Archive_ItemTypeResponse
+                        {
+                            Id = entity.Id,
+                            DeleteTime = entity.DeleteTime,
+                            TypeName = entity.TypeName,
+                            ArchiveNote = SafeDecrypt(entity.ArchiveNote),
+                        };
+                        return Ok(response);
+
+                    default:
+                        return Problem("Unknown archive status.");
                 }
-
-                Archive_ItemTypeResponse response = new Archive_ItemTypeResponse
-                {
-                    Id = itemType.Id,
-                    DeleteTime = itemType.DeleteTime,
-                    TypeName = itemType.TypeName,
-                    ArchiveNote = itemType.ArchiveNote,
-                };
-
-                return Ok(response);
             }
             catch (Exception ex)
             {
@@ -105,7 +132,7 @@ namespace SOP.Controllers
             }
         }
 
-        private ItemTypeResponse MapItemTypeToItemTypeResponse(ItemType itemType)
+        private static ItemTypeResponse MapItemTypeToItemTypeResponse(ItemType itemType)
         {
             return new ItemTypeResponse
             {
@@ -114,7 +141,7 @@ namespace SOP.Controllers
             };
         }
 
-        private ItemType MapItemTypeRequestToItemType(ItemTypeRequest itemTypeRequest)
+        private static ItemType MapItemTypeRequestToItemType(ItemTypeRequest itemTypeRequest)
         {
             return new ItemType
             {

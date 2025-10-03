@@ -1,4 +1,5 @@
-﻿using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
 using SOP.Entities;
 using SOP.Repositories;
 
@@ -22,10 +23,7 @@ namespace SOP.Controllers
             try
             {
                 var statuses = await _statusRepository.GetAllAsync();
-
-                List<StatusResponse> statusResponses = statuses.Select(
-                    status => MapStatusToStatusResponse(status)).ToList();
-
+                var statusResponses = statuses.Select(MapStatusToStatusResponse).ToList();
                 return Ok(statusResponses);
             }
             catch (Exception ex)
@@ -40,13 +38,9 @@ namespace SOP.Controllers
         {
             try
             {
-                Status newStatus = MapStatusRequestToStatus(statusRequest);
-
+                var newStatus = MapStatusRequestToStatus(statusRequest);
                 var status = await _statusRepository.CreateAsync(newStatus);
-
-                StatusResponse statusResponse = MapStatusToStatusResponse(status);
-
-                return Ok(statusResponse);
+                return Ok(MapStatusToStatusResponse(status));
             }
             catch (Exception ex)
             {
@@ -54,6 +48,7 @@ namespace SOP.Controllers
             }
         }
 
+        // Quick helper endpoint to check if a status is referenced in StatusHistory
         [Authorize("Admin", "Instruktør", "Drift")]
         [HttpGet("{id}/has-history")]
         public async Task<IActionResult> HasHistory([FromRoute] int id)
@@ -69,20 +64,22 @@ namespace SOP.Controllers
             }
         }
 
-
-
+        // DELETE with "in-use" guard -> return 409 if referenced by any StatusHistory row
         [Authorize("Admin", "Instruktør", "Drift")]
         [HttpDelete("{id}")]
         public async Task<IActionResult> DeleteAsync([FromRoute] int id)
         {
             try
             {
-                var deleted = await _statusRepository.DeleteAsync(id);
+                var result = await _statusRepository.DeleteByIdAsync(id);
 
-                if (!deleted)
-                    return NotFound(new { message = $"Status with ID {id} not found." });
-
-                return NoContent(); // 204 No Content
+                return result.Status switch
+                {
+                    DeleteStatus.NotFound => NotFound(new { message = $"Status med ID {id} blev ikke fundet." }),
+                    DeleteStatus.InUse => Conflict(new { message = "Status kan ikke slettes, fordi den bruges i StatusHistory." }),
+                    DeleteStatus.Deleted => NoContent(), // 204
+                    _ => Problem("Ukendt sletningsstatus.")
+                };
             }
             catch (Exception ex)
             {
@@ -92,17 +89,13 @@ namespace SOP.Controllers
 
 
         [Authorize("Admin", "Instruktør", "Drift")]
-        [HttpGet]
-        [Route("{Id}")]
+        [HttpGet("{Id}")]
         public async Task<IActionResult> FindByIdAsync([FromRoute] int Id)
         {
             try
             {
                 var status = await _statusRepository.FindByIdAsync(Id);
-                if (status == null)
-                {
-                    return NotFound();
-                }
+                if (status == null) return NotFound();
 
                 return Ok(MapStatusToStatusResponse(status));
             }
@@ -112,21 +105,15 @@ namespace SOP.Controllers
             }
         }
 
-        private StatusResponse MapStatusToStatusResponse(Status status)
+        private static StatusResponse MapStatusToStatusResponse(Status status) => new StatusResponse
         {
-            return new StatusResponse
-            {
-                Id = status.Id,
-                Name = status.Name
-            };
-        }
+            Id = status.Id,
+            Name = status.Name
+        };
 
-        private Status MapStatusRequestToStatus(StatusRequest statusRequest)
+        private static Status MapStatusRequestToStatus(StatusRequest statusRequest) => new Status
         {
-            return new Status
-            {
-                Name = statusRequest.Name,
-            };
-        }
+            Name = statusRequest.Name,
+        };
     }
 }
