@@ -54,7 +54,7 @@ namespace SOP.Controllers
             }
         }
 
-        [Authorize("Admin", "Instruktør", "Drift")]
+        //[Authorize("Admin", "Instruktør", "Drift")]
         [HttpGet]
         [Route("{Id}")]
         public async Task<IActionResult> FindByIdAsync([FromRoute] int Id)
@@ -105,14 +105,17 @@ namespace SOP.Controllers
             }
         }
 
+
         private ItemTypeResponse MapItemTypeToItemTypeResponse(ItemType itemType)
         {
             return new ItemTypeResponse
             {
                 Id = itemType.Id,
-                TypeName = itemType.TypeName
+                TypeName = itemType.TypeName,
+                PresetId = itemType.PresetId
             };
         }
+
 
         private ItemType MapItemTypeRequestToItemType(ItemTypeRequest itemTypeRequest)
         {

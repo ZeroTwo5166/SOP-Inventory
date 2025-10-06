@@ -20,6 +20,7 @@ export class ItemtypeComponent {
   newItemType: ItemType = {
     id: 0,
     typeName: '',
+    presetId:0
   };
   selectedItemType: ItemType | null = null;
   archiveNote: string = '';
@@ -95,6 +96,7 @@ export class ItemtypeComponent {
         this.newItemType = {
           id: 0,
           typeName: '',
+          presetId: 0
         };
       },
       error: (error) => {

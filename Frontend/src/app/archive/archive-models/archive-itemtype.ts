@@ -3,4 +3,5 @@ export interface ArchiveItemType {
   typeName: string;
   deleteTime: Date;
   archiveNote: string;
+  presetId: number; //---
 }

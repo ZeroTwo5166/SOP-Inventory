@@ -53,6 +53,7 @@ export class ProfileComponent implements OnInit {
       itemType: {
         id: 0,
         typeName: '',
+        presetId:0
       },
     },
   };

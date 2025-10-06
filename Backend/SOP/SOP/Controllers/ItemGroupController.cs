@@ -15,7 +15,7 @@ namespace SOP.Controllers
             _itemGroupRepository = itemGroupRepository;
         }
 
-        [Authorize("Admin", "Instruktør", "Drift")]
+        //[Authorize("Admin", "Instruktør", "Drift")]
         [HttpGet]
         public async Task<IActionResult> GetAllAsync()
         {
@@ -54,7 +54,7 @@ namespace SOP.Controllers
             }
         }
 
-        [Authorize("Admin", "Instruktør", "Drift")]
+        //[Authorize("Admin", "Instruktør", "Drift")]
         [HttpGet]
         [Route("{Id}")]
         public async Task<IActionResult> FindByIdAsync([FromRoute] int Id)
@@ -151,7 +151,8 @@ namespace SOP.Controllers
                 response.ItemType = new ItemGroupItemTypeResponse
                 {
                     Id = itemGroup.ItemType.Id,
-                    TypeName = itemGroup.ItemType.TypeName
+                    TypeName = itemGroup.ItemType.TypeName,
+                    PresetId = itemGroup?.ItemType?.PresetId
                 };
             }
             return response;

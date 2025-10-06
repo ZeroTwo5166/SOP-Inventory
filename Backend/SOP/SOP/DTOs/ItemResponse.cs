@@ -10,6 +10,9 @@ namespace SOP.DTOs
         public int RoomId { get; set; }
         public int ItemGroupId { get; set; }
         public string SerialNumber { get; set; } = string.Empty;
+        public string? ItemImageUrl { get; set; } = string.Empty;
+
+        public string? ItemInfo { get; set; } = string.Empty;
 
         public ItemItemGroupResponse ItemGroup { get; set; }
         public ItemRoomResponse Room { get; set; }

@@ -10,7 +10,6 @@
         <div class="card-body">
           <form (ngSubmit)="login()" #loginForm="ngForm">
             <div class="form-group">
-              <label for="username">Email:</label>
               <input
                 type="text"
                 id="username"
@@ -25,7 +24,6 @@
             </div>
 
             <div class="form-group">
-              <label for="password">Password:</label>
               <input
                 type="password"
                 id="password"
@@ -44,7 +42,7 @@
             </div>
 
             <!-- Keep button styling from first file -->
-            <button type="submit" class="button btn btn-primary btn-block"
+            <button type="submit" class="button"
               [disabled]="loginForm.invalid || showOtpSection">
               Log ind
             </button>

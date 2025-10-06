@@ -7,5 +7,14 @@
 
         [Column(TypeName = "nvarchar(255)")]
         public string TypeName { get; set; }
+
+        // Foreign key to Preset
+        public int? PresetId { get; set; }
+
+
+        // Navigation property
+        [ForeignKey("PresetId")]
+        public Preset? Preset { get; set; }
+
     }
 }

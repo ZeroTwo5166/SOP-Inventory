@@ -1,106 +1,114 @@
 <app-navbar></app-navbar>
+
 <div id="show-item" *ngIf="item">
-  <button class="btn btn-success floatingbtn" (click)="makeQRCode()">
-    Generer QR kode
-  </button>
-  <button class="btn btn-success floatingbtn" (click)="openStatusModal()">
-    Tilføj ny status
-  </button>
-  <button class="btn btn-primary floatingbtn" (click)="openEditModal(this.item)">
-    Rediger genstand
-  </button>
+
+  <!-- Action Buttons -->
+  <div class="action-buttons" style="margin-bottom: 1rem;">
+    <button class="btn btn-secondary" (click)="goBack()">← Tilbage</button>
+
+    <button class="btn btn-success floatingbtn" (click)="makeQRCode()">Generer QR kode</button>
+    <button class="btn btn-success floatingbtn" (click)="openStatusModal()">Tilføj ny status</button>
+    <button class="btn btn-primary floatingbtn" (click)="openEditModal(this.item)">Rediger genstand</button>
+  </div>
 
   <h1>Genstand</h1>
 
-  <!-- This part shows the item information -->
-  <div class="item-basic-info">
-    <p>Serienummer: {{ item.serialNumber }}</p>
-    <p *ngIf="itemType">
-      Genstandstype: {{ itemType.typeName }}
-    </p>
+  <!-- Item Image -->
+  <div class="item-image-container" style="margin-bottom: 1.5rem; text-align: center;">
+    <ng-container *ngIf="item.itemImageUrl; else noImage">
+      <a [href]="item.itemImageUrl" target="_blank" rel="noopener noreferrer">
+        <img [src]="item.itemImageUrl" alt="Billede af genstand" class="item-image" />
+      </a>
+    </ng-container>
+    <ng-template #noImage>
+      <p class="no-image-text">Intet billede fundet</p>
+    </ng-template>
   </div>
 
-  <!-- This part shows the current/latest status of the item -->
+
+  <!-- Basic Info -->
+  <div class="item-basic-info">
+    <p><strong>Serienummer:</strong> {{ item.serialNumber }}</p>
+    <p *ngIf="itemType"><strong>Genstandstype:</strong> {{ itemType.typeName }}</p>
+  </div>
+
+  <!-- Current Status -->
   <div *ngIf="currentStatusHistory" class="status-section">
     <h2>
       Nuværende status
       <hr />
     </h2>
-    <p>Status: {{ getStatusName(currentStatusHistory) }}</p>
-    <p>Note: {{ currentStatusHistory.note }}</p>
+    <p><strong>Status:</strong> {{ getStatusName(currentStatusHistory) }}</p>
+    <p><strong>Note:</strong> {{ currentStatusHistory.note }}</p>
   </div>
 
-  <!-- This part shows item group for the item -->
-  <div *ngIf="item.itemGroup" class="item-group-section">
+  <!-- Item Info -->
+<div *ngIf="itemInfoObj && (objectKeys(itemInfoObj).length > 0)" class="item-group-section">
     <div (click)="toggleItemGroup()" class="toggleCollapse">
       <h2>
-        Genstandsgruppe
-        <span *ngIf="!collapsedItemGroup" style="font-size: 20px">&#x25B2;</span>
-        <span *ngIf="collapsedItemGroup" style="font-size: 20px">&#x25BC;</span>
+        Item Information
+        <span *ngIf="!collapsedItemGroup">&#x25B2;</span>
+        <span *ngIf="collapsedItemGroup">&#x25BC;</span>
         <hr />
       </h2>
     </div>
     <div *ngIf="!collapsedItemGroup" class="collapsible-content">
-      <p>Modelnavn: {{ item.itemGroup.modelName }}</p>
-      <p>Fabrikant:{{ item.itemGroup.manufacturer }}</p>
-      <p>Pris: {{ item.itemGroup.price }} dkk</p>
-      <p>
-        Garantiperiode: {{ item.itemGroup.warrantyPeriod }}
-      </p>
-      <p>Antal: {{ item.itemGroup.quantity }}</p>
+      <div *ngFor="let key of objectKeys(itemInfoObj)">
+          <p><strong>{{ key }}:</strong> {{ itemInfoObj[key] }}</p>
+        </div>
     </div>
   </div>
 
-  <!-- This part shows room/locale the item is in -->
+  <!-- Location -->
   <div *ngIf="item.room" class="location-section">
-    <h2>
-      Lokation
-      <hr />
-    </h2>
-    <p>Lokale: {{ item.room.roomNumber }}</p>
-    <div *ngIf="item.room.building">
-      <p>Bygning: {{ item.room.building.buildingName }}</p>
-      <div *ngIf="item.room.building.buildingAddress">
-        <p>
-          Adresse:
-          {{ item.room.building.buildingAddress.road }},
-          {{ item.room.building.buildingAddress.zipCode }}
-          {{ item.room.building.buildingAddress.city }}
-        </p>
-        <p>
-          Region:
-          {{ item.room.building.buildingAddress.region }}
-        </p>
+    <div (click)="toggleLocation()" class="toggleCollapse">
+      <h2>
+        Lokation
+        <span *ngIf="!collapsedLocation">&#x25B2;</span>
+        <span *ngIf="collapsedLocation">&#x25BC;</span>
+        <hr />
+      </h2>
+    </div>
+
+    <div *ngIf="!collapsedLocation" class="collapsible-content">
+      <p><strong>Lokale:</strong> {{ item.room.roomNumber }}</p>
+      <div *ngIf="item.room.building">
+        <p><strong>Bygning:</strong> {{ item.room.building.buildingName }}</p>
+        <div *ngIf="item.room.building.buildingAddress">
+          <p>
+            <strong>Adresse:</strong>
+            {{ item.room.building.buildingAddress.road }},
+            {{ item.room.building.buildingAddress.zipCode }}
+            {{ item.room.building.buildingAddress.city }}
+          </p>
+          <p><strong>Region:</strong> {{ item.room.building.buildingAddress.region }}</p>
+        </div>
       </div>
     </div>
   </div>
 
-  <!-- This part shows the loan if the item is loaned out -->
+
+  <!-- Loan Info -->
   <div *ngIf="item.loan" class="loan-section">
     <h2>
       Udlån
       <hr />
     </h2>
-    <p>
-      Låne dato: {{ item.loan.loanDate | date : "dd/MM/yyyy" }}
-    </p>
-    <p>
-      Forventet retur dato:
-      {{ item.loan.returnDate | date : "dd/MM/yyyy" }}
-    </p>
+    <p><strong>Låne dato:</strong> {{ item.loan.loanDate | date : "dd/MM/yyyy" }}</p>
+    <p><strong>Forventet retur dato:</strong> {{ item.loan.returnDate | date : "dd/MM/yyyy" }}</p>
     <div *ngIf="user">
       <h4>Lånt af</h4>
-      <p>Navn: {{ user.name }}</p>
-      <p>Email: {{ user.email }}</p>
+      <p><strong>Navn:</strong> {{ user.name }}</p>
+      <p><strong>Email:</strong> {{ user.email }}</p>
     </div>
   </div>
 
-  <!-- Status Histories List -->
+  <!-- Status Histories -->
   <div (click)="toggleStatusHistories()" class="toggleCollapse">
     <h2>
       Statushistorik
-      <span *ngIf="!collapsedStatusHistories" style="font-size: 20px">&#x25B2;</span>
-      <span *ngIf="collapsedStatusHistories" style="font-size: 20px">&#x25BC;</span>
+      <span *ngIf="!collapsedStatusHistories">&#x25B2;</span>
+      <span *ngIf="collapsedStatusHistories">&#x25BC;</span>
       <hr />
     </h2>
   </div>
@@ -108,15 +116,15 @@
     <li *ngFor="let statusHistory of item.statusHistories" class="history-item">
       <h4>Status</h4>
       <hr />
-      <p>Status: {{ getStatusName(statusHistory) }}</p>
-      <p>
-        Dato:
-        {{ statusHistory.statusUpdateDate | date : "dd/MM/yyyy" }}
-      </p>
-      <p>Note: {{ statusHistory.note }}</p>
+      <p><strong>Status:</strong> {{ getStatusName(statusHistory) }}</p>
+      <p><strong>Dato:</strong> {{ statusHistory.statusUpdateDate | date : "dd/MM/yyyy" }}</p>
+      <p><strong>Note:</strong> {{ statusHistory.note }}</p>
     </li>
   </div>
+
+
 </div>
+
 
 <!-- Edit Item Modal -->
 <div class="modal" *ngIf="showEditModal">
@@ -126,8 +134,8 @@
     <form (ngSubmit)="editItem()">
       <div class="form-group">
         <label for="editItemGroupId">Genstandsgruppe</label>
-        <select class="form-control" id="editItemGroupId" [(ngModel)]="selectedItem.itemGroupId" name="editItemGroupId"
-          required>
+        <select class="form-control p-2" id="editItemGroupId" [(ngModel)]="selectedItem.itemGroupId"
+          name="editItemGroupId" required>
           <option *ngFor="let itemGroup of itemGroups" [value]="itemGroup.id">
             {{ itemGroup.modelName }}
           </option>
@@ -135,7 +143,7 @@
       </div>
       <div class="form-group">
         <label for="editRoomId">Lokale</label>
-        <select class="form-control" id="editRoomId" [(ngModel)]="selectedItem.roomId" name="editRoomId" required>
+        <select class="form-control p-2" id="editRoomId" [(ngModel)]="selectedItem.roomId" name="editRoomId" required>
           <option *ngFor="let room of rooms" [value]="room.id">
             {{ room.roomNumber }}
           </option>
@@ -146,10 +154,33 @@
         <input type="text" class="form-control" id="editSerialNumber" [(ngModel)]="selectedItem.serialNumber"
           name="editSerialNumber" />
       </div>
-      <button type="submit" class="btn btn-primary">Gem ændringer</button>
-      <button type="button" class="btn btn-secondary" (click)="closeEditModal()">
-        Annuller
-      </button>
+
+      <div class="form-group">
+        <label for="itemImage">Genstandbillede:</label>
+        <input type="file" class="form-control" id="itemImage" accept="image/*" (change)="onImageSelected($event)"
+          [disabled]="isUploadingImage" />
+
+        <!-- Preview selected image -->
+        <div
+          *ngIf="selectedImagePreview"
+          class="mt-2">
+          <label>Forhåndsvisning: </label>
+          <img [src]="selectedImagePreview" class="img-thumbnail fixed-preview ml-2"
+            style="max-height: 150px;" />
+
+          <!-- Reset/Delete Image Button -->
+          <div class="mt-2 mb-4">
+            <button type="button" class="btn btn-sm btn-warning" (click)="resetImage()">
+              Fjern billede
+            </button>
+          </div>
+        </div>
+
+        <button type="submit" class="btn btn-primary">Gem ændringer</button>
+        <button type="button" class="btn btn-secondary" (click)="closeEditModal()">
+          Annuller
+        </button>
+      </div>
     </form>
   </div>
 </div>

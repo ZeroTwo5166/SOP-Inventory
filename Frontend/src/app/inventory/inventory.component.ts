@@ -15,6 +15,8 @@ import { Building } from '../models/building';
 import { Address } from '../models/address';
 import { BuildingService } from '../services/building.service';
 import { AddressService } from '../services/address.service';
+import { PresetService } from '../services/preset.servive';
+import { Preset } from '../models/preset';
 
 @Component({
   selector: 'app-inventory',
@@ -25,7 +27,7 @@ import { AddressService } from '../services/address.service';
 })
 export class InventoryComponent implements OnInit {
   itemTypes: ItemType[] = [];
-  itemType: ItemType = { id: 0, typeName: '' };
+  itemType: ItemType = { id: 0, typeName: '', presetId: 0 };
   selectedItemTypes: { [key: number]: boolean } = {};
 
   items: Item[] = [];
@@ -35,6 +37,8 @@ export class InventoryComponent implements OnInit {
     roomId: 0,
     itemGroupId: 0,
     serialNumber: '',
+    itemImageUrl: ''
+
   };
 
   checkedItemGroup: ItemGroup = {
@@ -48,6 +52,7 @@ export class InventoryComponent implements OnInit {
     itemType: {
       id: 0,
       typeName: '',
+      presetId: 0
     },
   };
 
@@ -56,6 +61,7 @@ export class InventoryComponent implements OnInit {
     roomId: 0,
     itemGroupId: 0,
     serialNumber: '',
+    itemImageUrl: ''
   };
 
   selectedItemGroup: ItemGroup = {
@@ -69,6 +75,7 @@ export class InventoryComponent implements OnInit {
     itemType: {
       id: 0,
       typeName: '',
+      presetId: 0
     },
   };
 
@@ -96,6 +103,28 @@ export class InventoryComponent implements OnInit {
   showErrorNote: boolean = false;
   showArchiveModal: boolean = false;
 
+  selectedImage: File | null = null;
+  selectedImagePreview: string | null = null;
+  isUploadingImage: boolean = false;
+  imageUpdated: boolean = false;
+  uploadError: boolean = false;
+
+  showInfoModal: boolean = false;
+
+
+  // holds the selected itemGroup object (not just the id)
+  selectedItemGroupObj: ItemGroup | null = null;
+
+  // preset UI helpers
+  presetJsonString: string = '';
+  showRawPreset = false;
+
+
+  presets: any[] = [];
+  selectedPresetData: any = null;
+  presetFields: { [key: string]: any } = {}; // Store user input for preset fields
+  objectKeys = Object.keys;
+
   constructor(
     private itemService: ItemService,
     private itemGroupService: ItemGroupService,
@@ -104,7 +133,9 @@ export class InventoryComponent implements OnInit {
     private router: Router,
     private roomService: RoomService,
     private buildingService: BuildingService,
-    private addressService: AddressService
+    private addressService: AddressService,
+    private presetService: PresetService // Add this
+
   ) { }
 
   ngOnInit(): void {
@@ -117,6 +148,63 @@ export class InventoryComponent implements OnInit {
     this.getBuildings();
     this.getAddresses();
   }
+
+
+  onItemGroupChange() {
+    console.log("Item Group Changed");
+
+    const groupId = +this.newItem.itemGroupId; // convert to number
+
+    const selectedGroup = this.itemGroups.find(ig => ig.id === groupId);
+
+    console.log(selectedGroup)
+    console.log(this.itemGroups)
+    if (selectedGroup && selectedGroup.itemType) {
+          console.log("Item Type:", selectedGroup.itemType);
+        const presetId = selectedGroup.itemType.presetId;
+        
+        if (presetId && presetId > 0) {
+          // Fetch preset data based on presetId
+          this.fetchPresetData(presetId);
+        } else {
+          // No preset for this item type
+          this.selectedPresetData = null;
+          this.presetFields = {};
+        }
+      }
+    
+
+  }
+
+
+  fetchPresetData(presetId: number): void {
+    this.presetService.findById(presetId).subscribe(
+      (preset) => {
+        console.log("Fetched Preset:", preset);
+        this.selectedPresetData = preset;
+        
+        // Initialize preset fields with empty values for user input
+        this.presetFields = {};
+        if (preset) {
+          Object.keys(preset).forEach(key => {
+            // Skip id and other metadata fields
+            if (key !== 'id' && key !== 'presetId') {
+              this.presetFields[key] = '';
+            }
+          });
+        }
+        this.cdr.detectChanges();
+      },
+      (error) => {
+        console.error('Error fetching preset data:', error);
+        this.selectedPresetData = null;
+        this.presetFields = {};
+      }
+    );
+  }
+
+
+
 
   // ============================
   // Fetch data from database
@@ -174,6 +262,54 @@ export class InventoryComponent implements OnInit {
     return building ? building.buildingName : 'Bygning ikke fundet';
   }
 
+  //Image methods
+  resetImage() {
+    this.selectedImagePreview = null;
+    (document.getElementById('itemImage') as HTMLInputElement).value = '';
+  }
+
+  onImageSelected(event: Event): void {
+    const input = event.target as HTMLInputElement;
+    if (input.files && input.files.length > 0) {
+      this.selectedImage = input.files[0];
+
+
+      const reader = new FileReader();
+      reader.onload = () => {
+        this.selectedImagePreview = reader.result as string;
+      };
+      reader.readAsDataURL(this.selectedImage);
+
+      // Reset upload states
+      this.imageUpdated = false;
+      this.uploadError = false;
+    }
+  }
+
+
+  uploadImageToCloudinaryAsync(file: File): Promise<string> {
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('upload_preset', 'SOP_ProfileImages');
+
+    const cloudName = 'dkrcapzct';
+    const uploadUrl = `https://api.cloudinary.com/v1_1/${cloudName}/image/upload`;
+
+    return fetch(uploadUrl, {
+      method: 'POST',
+      body: formData,
+    })
+      .then(res => {
+        if (!res.ok) {
+          throw new Error(`HTTP error! status: ${res.status}`);
+        }
+        return res.json();
+      })
+      .then(data => {
+        return data.secure_url;
+      });
+  }
+
   // Helper method for address
   getAddressInfo(roomId: number): string {
     if (!roomId) return 'Ikke angivet';
@@ -184,7 +320,8 @@ export class InventoryComponent implements OnInit {
     const building = this.buildings.find((b) => b.id === room.buildingId);
     if (!building) return 'Adresse ikke fundet';
 
-    const address = this.addresses.find((a) => a.zipCode === building.addressId); //TEST
+    const address = this.addresses.find((a) => a.id === building.buildingAddress?.id); //TEST
+
     return address ? address.road : 'Adresse ikke fundet';
   }
 
@@ -285,21 +422,36 @@ export class InventoryComponent implements OnInit {
   // Create, update and delete metodes
   // ============================
 
+
+
   // Creates new item
   async createNewItem(): Promise<void> {
     try {
+
+
+      // If an image is selected, upload it first
+      if (this.selectedImage) {
+        this.isUploadingImage = true;
+        this.newItem.itemImageUrl = await this.uploadImageToCloudinaryAsync(this.selectedImage);
+        this.isUploadingImage = false;
+      }
+
+
       // Call the item service to create a new item and wait for the response
-      const response = await this.itemService.create(this.newItem).toPromise();
+      await this.itemService.create(this.newItem).toPromise();
 
       // Close the modal for creating new items
       this.closeNewItemModal();
 
       // Reset the newItem object to its default state for future use
-      this.newItem = { id: 0, itemGroupId: 0, roomId: 0, serialNumber: '' };
+      this.newItem = { id: 0, itemGroupId: 0, roomId: 0, serialNumber: '', itemImageUrl: '' };
+      this.selectedImage = null;
+      this.selectedImagePreview = null;
 
       // Reload the entire page to reflect changes
       window.location.reload();
     } catch (error) {
+      this.isUploadingImage = false;
       // Log any errors encountered during the item creation process
       console.error('Error creating item type', error);
     }
@@ -326,6 +478,7 @@ export class InventoryComponent implements OnInit {
           roomId: 0,
           itemGroupId: 0,
           serialNumber: '',
+          itemImageUrl: ''
         };
 
         // Reload the page to reflect the changes (Consider updating the UI dynamically instead)
@@ -337,6 +490,12 @@ export class InventoryComponent implements OnInit {
       }
     );
   }
+
+
+  showInformation(): void {
+    this.showInfoModal = !this.showInfoModal;
+  }
+
 
   // ==========================
   // Open and close models and reroute
@@ -357,9 +516,31 @@ export class InventoryComponent implements OnInit {
     this.showModal = false;
   }
 
-  // Open Edit Modal and set the selectedItem
+  // Fix the openEditItemModal method
   openEditItemModal(item: Item): void {
     this.selectedItem = { ...item };
+
+    // Debug: Log the item to see what properties it actually has
+    console.log('Item object:', item);
+    console.log('Item image URL:', item.itemImageUrl);
+
+    // Try both possible property names to be safe
+    const imageUrl = item.itemImageUrl || item.itemImageUrl || '';
+
+    // If the item has an existing image, set it as the preview
+    if (imageUrl && imageUrl.trim() !== '') {
+      this.selectedImagePreview = imageUrl;
+      console.log('Setting image preview to:', imageUrl);
+    } else {
+      this.selectedImagePreview = null;
+      console.log('No image URL found');
+    }
+
+    // Reset the file input and selected image since we're showing existing image
+    this.selectedImage = null;
+    this.imageUpdated = false;
+    this.uploadError = false;
+
     this.showEditModal = true;
   }
 
@@ -371,7 +552,22 @@ export class InventoryComponent implements OnInit {
       roomId: 0,
       itemGroupId: 0,
       serialNumber: '',
+      itemImageUrl: ''
     };
+
+    // Reset image-related properties
+    this.selectedImage = null;
+    this.selectedImagePreview = null;
+    this.imageUpdated = false;
+    this.uploadError = false;
+
+    // Reset the file input
+    const fileInput = document.getElementById('editItemImage') as HTMLInputElement;
+    if (fileInput) {
+      fileInput.value = '';
+    }
+
+
   }
 
 
@@ -418,3 +614,23 @@ export class InventoryComponent implements OnInit {
     this.showErrorNote = false;
   }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

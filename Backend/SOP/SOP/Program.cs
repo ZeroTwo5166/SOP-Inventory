@@ -31,6 +31,7 @@ builder.Services.AddScoped<IArchive_ItemTypeRepository, Archive_ItemTypeReposito
 builder.Services.AddScoped<IArchive_LoanRepository, Archive_LoanRepository>();
 builder.Services.AddScoped<IArchive_RequestRepository, Archive_RequestRepository>();
 builder.Services.AddScoped<IArchive_UserRepository, Archive_UserRepository>();
+builder.Services.AddScoped<IPresetRepository, PresetRepository>();
 builder.Services.AddScoped<IJwtUtils, JwtUtils>();
 
 // Load configuration settings from appsettings.json and appsettings.Local.json (if available)

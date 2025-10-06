@@ -1,163 +1,328 @@
-body {
-    font-family: 'Arial', sans-serif;
-    background-color: #26422a;
-    color: #f0f0f0;
-    margin: 0;
-    padding: 0;
-}
-
+/* =========================================
+   Show Item Container
+========================================= */
 #show-item {
-    text-align: left;
-    background-color: #3b6045;
-    width: 60%;
-    margin: 2rem auto;
-    border-radius: 15px;
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
-    padding: 2rem;
-    transition: transform 0.2s ease-in-out;
+  text-align: left;
+  background-color: var(--card-bg);
+  color: var(--text);
+  width: 70%;
+  max-width: 900px;
+  margin: 2rem auto;
+  border-radius: 15px;
+  box-shadow: 0 6px 12px rgba(0, 0, 0, 0.3);
+  padding: 2rem;
+  transition: transform 0.2s ease-in-out;
+  border: 1px solid var(--border);
 }
 
-
+/* =========================================
+   Typography
+========================================= */
+h1, h2, h3, h4 {
+  color: var(--text);
+}
 
 hr {
-    border: none;
-    height: 2px;
-    background: #f0f0f0;
-    border-radius: 10px;
-    opacity: 0.8;
+  border: none;
+  height: 2px;
+  background: var(--border);
+  border-radius: 10px;
+  opacity: 0.5;
 }
 
-h3 {
-    font-size: 1.5rem;
-    color: #e6f2e9;
-    margin-bottom: 0.5rem;
-    border-bottom: 2px solid #e6f2e9;
-    padding-bottom: 0.3rem;
-}
-
-h4 {
-    font-weight: bold;
-}
-
-p {
-    font-size: 1rem;
-    margin-bottom: 1rem;
-    color: #d8e6dc;
-}
-
-table {
-    width: 100%;
-    border-collapse: collapse;
-    margin-top: 1rem;
-}
-
-table th,
-table td {
-    padding: 0.5rem 1rem;
-    border: 1px solid #f0f0f0;
-    text-align: left;
-    color: #e6f2e9;
-}
-
-table th {
-    background-color: #4a7353;
-    color: #f0f0f0;
-}
-
-table tr:nth-child(even) {
-    background-color: #3f614a;
-}
-
-table tr:nth-child(odd) {
-    background-color: #3b6045;
-}
-
-ul,
-li {
-    margin: 0;
-    padding-left: 1.5rem;
-    list-style-type: none;
-    color: #d8e6dc;
-}
-
-li {
-    margin-bottom: 0.5rem;
-}
-
-.part-toggle {
-    cursor: pointer;
-}
-
-.part-toggle:hover {
-    cursor: pointer;
-    background-color: #26422a;
-}
-
-.toggleCollapse {
-    cursor: pointer;
-}
-
-h1 {
-    clear: left;
-}
-
+/* =========================================
+   Buttons
+========================================= */
 .floatingbtn {
-    display: inline;
-    float: right;
-    margin-right: 10px;
+  display: inline-block;
+  margin: 0 10px 10px 0;
+  float: right;
 }
 
 .qrbtn {
-    margin-top: 10px;
-    margin-bottom: 10px;
-    width: 100%;
+  margin-top: 10px;
+  margin-bottom: 10px;
+  width: 100%;
 }
 
-.modal {
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    position: fixed;
-    top: 0%;
-    left: 0%;
-    width: 100%;
-    height: 100%;
-    background-color: rgba(0, 0, 0, 0.5);
-    color: black;
+/* =========================================
+   Item Info
+========================================= */
+.item-basic-info p,
+.location-section p,
+.item-group-section p,
+.status-section p,
+.loan-section p,
+.history-item p {
+  font-size: 1rem;
+  margin-bottom: 0.8rem;
+  color: var(--text);
+}
 
+.item-basic-info {
+  margin-bottom: 1.5rem;
+}
+
+.item-group-section,
+.location-section,
+.status-section,
+.loan-section {
+  margin-bottom: 2rem;
+  padding: 1rem;
+  border-radius: 10px;
+  background-color: var(--surface);
+  border: 1px solid var(--border);
+}
+
+/* =========================================
+   Image Styling
+========================================= */
+.item-image-container {
+  margin-bottom: 1.5rem;
+  text-align: center;
+}
+
+.item-image {
+  max-width: 100%;
+  max-height: 300px;
+  border-radius: 10px;
+  transition: transform 0.2s ease;
+  cursor: pointer;
+  display: inline-block;
+}
+
+.item-image:hover {
+  transform: scale(1.05);
+}
+
+.no-image-text {
+  color: var(--muted);
+  font-style: italic;
+}
+
+/* =========================================
+   Collapsible Sections
+========================================= */
+.toggleCollapse {
+  cursor: pointer;
+  user-select: none;
+  margin-bottom: 0.5rem;
+}
+
+.toggleCollapse:hover h2 {
+  opacity: 0.8;
+}
+
+.collapsible-content {
+  padding-left: 1rem;
+  transition: all 0.3s ease;
+}
+
+.toggleCollapse h2 {
+  display: flex;
+  justify-content: left;
+  align-items: center;
+}
+
+.toggleCollapse span {
+  margin-left: 0.5rem;
+  font-size: 0.8em;
+}
+
+/* =========================================
+   Status History List
+========================================= */
+.history-item {
+  list-style: none;
+  border-left: 3px solid var(--brand);
+  padding-left: 1rem;
+  margin-bottom: 1.5rem;
+  background-color: var(--surface);
+  padding: 1rem;
+  border-radius: 5px;
+}
+
+.history-item h4 {
+  margin-top: 0;
+  margin-bottom: 0.5rem;
+}
+
+/* =========================================
+   Modal Styling
+========================================= */
+.modal {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.6);
+  z-index: 10000 !important;
 }
 
 .modal-content {
-    background-color: #fff;
-    padding: 20px;
-    border-radius: 5px;
-    width: 80%;
-    max-width: 500px;
-    position: fixed;
-    top: 5%;
+  background-color: var(--card-bg);
+  color: var(--text);
+  padding: 30px;
+  border-radius: 10px;
+  width: 80%;
+  max-width: 500px;
+  position: relative;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+  z-index: 10001;
+  border: 1px solid var(--border);
+}
+
+.modal-content h2 {
+  margin-top: 0;
+  margin-bottom: 1.5rem;
+  color: var(--text);
 }
 
 .close {
-    position: absolute;
-    top: 10px;
-    right: 10px;
-    font-size: 24px;
-    cursor: pointer;
+  position: absolute;
+  top: 15px;
+  right: 15px;
+  font-size: 28px;
+  cursor: pointer;
+  color: var(--text);
+  opacity: 0.7;
+  transition: opacity 0.2s;
+  line-height: 1;
+  font-weight: bold;
 }
 
+.close:hover {
+  opacity: 1;
+}
+
+/* =========================================
+   Form Styling
+========================================= */
+.form-group {
+  margin-bottom: 1.2rem;
+}
+
+.form-group label {
+  display: block;
+  margin-bottom: 0.5rem;
+  color: var(--text);
+  font-weight: 500;
+  font-size: 0.95rem;
+}
+
+.form-control {
+  width: 100%;
+  padding: 0.6rem;
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  background-color: var(--surface);
+  color: var(--text);
+  box-sizing: border-box;
+  font-size: 1rem;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.form-control:focus {
+  outline: none;
+  border-color: var(--brand);
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+}
+
+:root[data-theme="dark"] .form-control:focus {
+  box-shadow: 0 0 0 3px rgba(96, 165, 250, 0.15);
+}
+
+.form-control::placeholder {
+  color: var(--muted);
+}
+
+select.form-control {
+  cursor: pointer;
+}
+
+textarea.form-control {
+  resize: vertical;
+  min-height: 80px;
+}
+
+/* =========================================
+   Modal Buttons
+========================================= */
+.modal-content button {
+  margin-right: 0.5rem;
+  margin-top: 1rem;
+}
+
+.modal-content .btn-primary {
+  background-color: var(--btn-bg);
+  color: var(--btn-text);
+  border-color: var(--btn-bg);
+}
+
+.modal-content .btn-secondary {
+  background-color: var(--surface);
+  color: var(--text);
+  border-color: var(--border);
+}
+
+.modal-content .btn-secondary:hover {
+  background-color: var(--border);
+}
+
+/* =========================================
+   QR Code Modal Specific
+========================================= */
+.modal-content img[alt="QR Code"] {
+  border: 1px solid var(--border);
+  border-radius: 5px;
+}
+
+/* =========================================
+   Responsive
+========================================= */
+@media (max-width: 1024px) {
+  #show-item {
+    width: 90%;
+    padding: 1.5rem;
+  }
+}
 
 @media (max-width: 768px) {
-    .floatingbtn {
-      display: block; 
-      width: 100%; 
-      margin-bottom: 10px; 
-    }
-  
-    .container {
-      width: 100%; 
-    }
-  
-    .modal-content {
-      width: 90%; 
-    }
+  #show-item {
+    width: 95%;
+    padding: 1rem;
+  }
+
+  .floatingbtn {
+    display: block;
+    width: 100%;
+    margin-bottom: 10px;
+    float: none;
+  }
+
+  .modal-content {
+    width: 90%;
+    padding: 20px;
+  }
+
+  .action-buttons {
+    margin-bottom: 1rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .modal-content {
+    width: 95%;
+    padding: 15px;
+  }
+
+  .close {
+    font-size: 24px;
+    top: 10px;
+    right: 10px;
+  }
 }

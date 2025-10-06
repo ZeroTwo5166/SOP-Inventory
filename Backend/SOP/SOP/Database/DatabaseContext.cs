@@ -18,6 +18,7 @@ namespace SOP.Database
         public DbSet<Item> Item { get; set; }
         public DbSet<ItemGroup> ItemGroup { get; set; }
         public DbSet<ItemType> ItemType { get; set; }
+        public DbSet<Preset> Presets { get; set; }
         public DbSet<Loan> Loan { get; set; }
         public DbSet<PartGroup> PartGroup { get; set; }
         public DbSet<PartType> PartType { get; set; }
@@ -91,6 +92,14 @@ namespace SOP.Database
             modelBuilder.Entity<ItemType>()
                 .Property(i => i.Id)
                 .ValueGeneratedOnAdd();
+
+            // Configure Preset <-> ItemType relationship
+            modelBuilder.Entity<ItemType>()
+                .HasOne(it => it.Preset)
+                .WithMany(p => p.ItemTypes)
+                .HasForeignKey(it => it.PresetId)
+                .OnDelete(DeleteBehavior.Restrict); // Preset is constant/static, don't delete it
+
 
             modelBuilder.Entity<Loan>()
                 .Property(l => l.Id)
@@ -179,11 +188,11 @@ namespace SOP.Database
 
             // Seed data for ItemType (from first file)
             modelBuilder.Entity<ItemType>().HasData(
-                new ItemType { Id = 1, TypeName = "Computer" },
-                new ItemType { Id = 2, TypeName = "Bord" },
-                new ItemType { Id = 3, TypeName = "Stole" },
-                new ItemType { Id = 4, TypeName = "Skærm" },
-                new ItemType { Id = 5, TypeName = "Tastatur" }
+                new ItemType { Id = 1, TypeName = "Computer", PresetId = 1 },
+                new ItemType { Id = 2, TypeName = "Bord", PresetId = 8 },
+                new ItemType { Id = 3, TypeName = "Stole", PresetId = 9 },
+                new ItemType { Id = 4, TypeName = "Skærm", PresetId = 3 },   // Assuming screens use the Computer preset
+                new ItemType { Id = 5, TypeName = "Tastatur", PresetId = 4 }
             );
 
             // Seed data for ItemGroup (from first file)
@@ -336,6 +345,400 @@ namespace SOP.Database
                     ReturnDate = new DateTime(2026, 6, 29, 14, 59, 59)
                 } 
             );
+
+            modelBuilder.Entity<Preset>().HasData(
+                new Preset
+                {
+                    Id = 1,
+                    Name = "Computer",
+                    Data = @"{
+            ""CPU"": ""string"",
+            ""RAM"": ""string"",
+            ""GPU"": ""string"",
+            ""Lager"": ""string"",
+            ""OS"": ""string"",
+            ""Motherboard"": ""string"",
+            ""Strømforsyning"": ""string"",
+            ""Kabinet"": ""string"",
+            ""Farve"": ""string""
+        }"
+                },
+                new Preset
+                {
+                    Id = 2,
+                    Name = "Bærbar",
+                    Data = @"{
+            ""CPU"": ""string"",
+            ""RAM"": ""string"",
+            ""GPU"": ""string"",
+            ""Lager"": ""string"",
+            ""OS"": ""string"",
+            ""Skærmstørrelse"": ""decimal"",
+            ""BatteriKapacitet"": ""string"",
+            ""Vægt"": ""decimal"",
+            ""HDMI"": ""bool"",
+            ""Thunderbolt"": ""bool"",
+            ""Farve"": ""string""
+        }"
+                },
+                new Preset
+                {
+                    Id = 3,
+                    Name = "Skærm",
+                    Data = @"{
+            ""Skærmstørrelse"": ""decimal"",
+            ""Opløsning"": ""string"",
+            ""Paneltype"": ""string"",
+            ""Lysstyrke"": ""int"",
+            ""Reaktionstid"": ""string"",
+            ""HDR"": ""bool"",
+            ""FreeSync"": ""bool"",
+            ""G-Sync"": ""bool"",
+            ""BuiltInSpeakers"": ""bool"",
+            ""Porte"": ""string"",
+            ""Farve"": ""string""
+        }"
+                },
+                new Preset
+                {
+                    Id = 4,
+                    Name = "Tastatur",
+                    Data = @"{
+            ""Type"": ""string"",
+            ""SwitchType"": ""string"",
+            ""Layout"": ""string"",
+            ""RGB"": ""bool"",
+            ""Makrotaster"": ""bool"",
+            ""NumPad"": ""bool"",
+            ""Mediakontroller"": ""bool"",
+            ""Forbindelse"": ""string"",
+            ""Trådløs"": ""bool"",
+            ""Farve"": ""string""
+        }"
+                },
+                new Preset
+                {
+                    Id = 5,
+                    Name = "Mus",
+                    Data = @"{
+            ""Type"": ""string"",
+            ""Sensor"": ""string"",
+            ""DPI"": ""int"",
+            ""MaxDPI"": ""int"",
+            ""Knapper"": ""int"",
+            ""ProgrammerbareKnapper"": ""int"",
+            ""RGB"": ""bool"",
+            ""Trådløs"": ""bool"",
+            ""Vægt"": ""decimal"",
+            ""Ergonomisk"": ""bool"",
+            ""Farve"": ""string""
+        }"
+                },
+                new Preset
+                {
+                    Id = 6,
+                    Name = "Headset",
+                    Data = @"{
+            ""Type"": ""string"",
+            ""Størrelse"": ""decimal"",
+            ""Mikrofon"": ""bool"",
+            ""NoiseCanellation"": ""bool"",
+            ""Forbindelse"": ""string"",
+            ""Trådløs"": ""bool"",
+            ""BatteriTid"": ""string"",
+            ""RGB"": ""bool"",
+            ""Farve"": ""#EC4899""
+        }"
+                },
+                new Preset
+                {
+                    Id = 7,
+                    Name = "Printer",
+                    Data = @"{
+            ""Type"": ""string"",
+            ""Farve"": ""bool"",
+            ""Duplex"": ""bool"",
+            ""PrintHastighed"": ""int"",
+            ""Opløsning"": ""string"",
+            ""Papirstørrelse"": ""string"",
+            ""PapirKapacitet"": ""int"",
+            ""Scanner"": ""bool"",
+            ""Kopimaskine"": ""bool"",
+            ""Fax"": ""bool"",
+            ""Forbindelse"": ""string"",
+            ""Netværk"": ""bool"",
+            ""MånedligtVolumen"": ""int"",
+            ""Farve"": ""#06B6D4""
+        }"
+                },
+                new Preset
+                {
+                    Id = 8,
+                    Name = "Skrivebord",
+                    Data = @"{
+            ""Længde"": ""decimal"",
+            ""Bredde"": ""decimal"",
+            ""Højde"": ""decimal"",
+            ""MinHøjde"": ""decimal"",
+            ""MaxHøjde"": ""decimal"",
+            ""Materiale"": ""string"",
+            ""HøjdeJusterbart"": ""bool"",
+            ""Elektrisk"": ""bool"",
+            ""Bæreevne"": ""decimal"",
+            ""KabelManagement"": ""bool"",
+            ""HukommelsesPresets"": ""int"",
+            ""Farve"": ""string""
+        }"
+                },
+                new Preset
+                {
+                    Id = 9,
+                    Name = "Stol",
+                    Data = @"{
+            ""MinHøjde"": ""decimal"",
+            ""MaxHøjde"": ""decimal"",
+            ""Bredde"": ""decimal"",
+            ""Dybde"": ""decimal"",
+            ""Materiale"": ""string"",
+            ""PolstringType"": ""string"",
+            ""Ergonomisk"": ""bool"",
+            ""LændeStøtte"": ""bool"",
+            ""JusterbarLændestøtte"": ""bool"",
+            ""Armlæn"": ""bool"",
+            ""JusterbarArmlæn"": ""string"",
+            ""Nakkestøtte"": ""bool"",
+            ""TiltFunktion"": ""bool"",
+            ""MaxVægt"": ""decimal"",
+            ""Hjul"": ""string"",
+            ""Farve"": ""string""
+        }"
+                },
+                new Preset
+                {
+                    Id = 10,
+                    Name = "Projektor",
+                    Data = @"{
+            ""Opløsning"": ""string"",
+            ""NativOpløsning"": ""string"",
+            ""Lumens"": ""int"",
+            ""Kontrast"": ""string"",
+            ""Teknologi"": ""string"",
+            ""LampeLeveTid"": ""int"",
+            ""ThrowRatio"": ""string"",
+            ""ProjektionsAfstand"": ""string"",
+            ""Keystone"": ""bool"",
+            ""HDR"": ""bool"",
+            ""3D"": ""bool"",
+            ""Forbindelse"": ""string"",
+            ""Trådløs"": ""bool"",
+            ""BuiltInSpeakers"": ""bool"",
+            ""Støjniveau"": ""int"",
+            ""Farve"": ""string""
+        }"
+                },
+                new Preset
+                {
+                    Id = 11,
+                    Name = "Router",
+                    Data = @"{
+            ""WiFiStandard"": ""string"",
+            ""MaxHastighed"": ""string"",
+            ""Frekvens"": ""string"",
+            ""DualBand"": ""bool"",
+            ""TriBand"": ""bool"",
+            ""MU-MIMO"": ""bool"",
+            ""Beamforming"": ""bool"",
+            ""LANPorter"": ""int"",
+            ""WANPorter"": ""int"",
+            ""PortHastighed"": ""string"",
+            ""USB"": ""int"",
+            ""QoS"": ""bool"",
+            ""VPN"": ""bool"",
+            ""GæsteNetværk"": ""bool"",
+            ""ForældreKontrol"": ""bool"",
+            ""Mesh"": ""bool"",
+            ""Farve"": ""string""
+        }"
+                },
+                new Preset
+                {
+                    Id = 12,
+                    Name = "Netværksswitch",
+                    Data = @"{
+            ""Porter"": ""int"",
+            ""PoEPorter"": ""int"",
+            ""Managed"": ""bool"",
+            ""Hastighed"": ""string"",
+            ""PortHastighed"": ""string"",
+            ""SFPPorter"": ""int"",
+            ""Switching Kapacitet"": ""string"",
+            ""VLAN"": ""bool"",
+            ""QoS"": ""bool"",
+            ""LinkAggregation"": ""bool"",
+            ""Stacking"": ""bool"",
+            ""PoEBudget"": ""int"",
+            ""Strømforbrug"": ""int"",
+            ""Rack-montering"": ""bool"",
+            ""Farve"": ""string""
+        }"
+                },
+                new Preset
+                {
+                    Id = 13,
+                    Name = "Tablet",
+                    Data = @"{
+            ""CPU"": ""string"",
+            ""Kerner"": ""int"",
+            ""RAM"": ""string"",
+            ""Storage"": ""string"",
+            ""StorageType"": ""string"",
+            ""UdvidelsesMulighed"": ""bool"",
+            ""OS"": ""string"",
+            ""OSVersion"": ""string"",
+            ""Skærmstørrelse"": ""decimal"",
+            ""Opløsning"": ""string"",
+            ""SkærmType"": ""string"",
+            ""Batteritid"": ""string"",
+            ""BatteriKapacitet"": ""int"",
+            ""Kamera"": ""string"",
+            ""FrontKamera"": ""string"",
+            ""Mobilnetværk"": ""bool"",
+            ""WiFi"": ""string"",
+            ""Bluetooth"": ""string"",
+            ""USB-C"": ""bool"",
+            ""Stylus"": ""bool"",
+            ""Tastatur"": ""bool"",
+            ""Vægt"": ""decimal"",
+            ""Farve"": ""string""
+        }"
+                },
+                new Preset
+                {
+                    Id = 14,
+                    Name = "Ekstern Lagerenhed",
+                    Data = @"{
+            ""Type"": ""string"",
+            ""Kapacitet"": ""string"",
+            ""Forbindelse"": ""string"",
+            ""USBVersion"": ""string"",
+            ""LæseHastighed"": ""int"",
+            ""SkrivHastighed"": ""int"",
+            ""Kryptering"": ""bool"",
+            ""AdgangskodeBeskyttelse"": ""bool"",
+            ""StødResistent"": ""bool"",
+            ""VandResistent"": ""bool"",
+            ""Backup Software"": ""bool"",
+            ""RAID"": ""bool"",
+            ""Strømforsyning"": ""string"",
+            ""Dimensioner"": ""string"",
+            ""Vægt"": ""decimal"",
+            ""Farve"": ""string""
+        }"
+                },
+                new Preset
+                {
+                    Id = 15,
+                    Name = "Grafiktablet",
+                    Data = @"{
+            ""AktivtOmråde"": ""string"",
+            ""Opløsning"": ""int"",
+            ""Trykniveauer"": ""int"",
+            ""TiltGenkendelse"": ""int"",
+            ""Læsehastighed"": ""int"",
+            ""Forbindelse"": ""string"",
+            ""Trådløs"": ""bool"",
+            ""MultiTouch"": ""bool"",
+            ""ExpressKeys"": ""int"",
+            ""TouchRing"": ""bool"",
+            ""Skærm"": ""bool"",
+            ""Skærmstørrelse"": ""decimal"",
+            ""SkærmOpløsning"": ""string"",
+            ""PenType"": ""string"",
+            ""BatteriLøsPen"": ""bool"",
+            ""Kompatibilitet"": ""string"",
+            ""Tykkelse"": ""decimal"",
+            ""Vægt"": ""decimal"",
+            ""Farve"": ""string""
+        }"
+                },
+                new Preset
+                {
+                    Id = 16,
+                    Name = "Server",
+                    Data = @"{
+            ""CPU"": ""string"",
+            ""CPUAntal"": ""int"",
+            ""Kerner"": ""int"",
+            ""Tråde"": ""int"",
+            ""RAM"": ""string"",
+            ""MaxRAM"": ""string"",
+            ""RAMSlots"": ""int"",
+            ""Lager"": ""string"",
+            ""LagerType"": ""string"",
+            ""DriveBays"": ""int"",
+            ""RAID"": ""string"",
+            ""PSU"": ""string"",
+            ""RedundantPSU"": ""bool"",
+            ""FormFaktor"": ""string"",
+            ""RackUnits"": ""string"",
+            ""Netværk"": ""string"",
+            ""NetworkPorts"": ""int"",
+            ""RemoteManagement"": ""string"",
+            ""HotSwap"": ""bool"",
+            ""Farve"": ""string""
+        }"
+                },
+                new Preset
+                {
+                    Id = 17,
+                    Name = "UPS",
+                    Data = @"{
+            ""Kapacitet"": ""int"",
+            ""OutputWatt"": ""int"",
+            ""Topologi"": ""string"",
+            ""BatteriType"": ""string"",
+            ""Runtime"": ""string"",
+            ""OpladningsTid"": ""string"",
+            ""InputVoltage"": ""string"",
+            ""OutputVoltage"": ""string"",
+            ""Stikdåser"": ""int"",
+            ""BatteryBackup"": ""int"",
+            ""SurgeOnly"": ""int"",
+            ""USBPort"": ""bool"",
+            ""NetworkManagement"": ""bool"",
+            ""LCD"": ""bool"",
+            ""Rack-montering"": ""bool"",
+            ""Software"": ""string"",
+            ""Farve"": ""string""
+        }"
+                },
+                new Preset
+                {
+                    Id = 18,
+                    Name = "Webcam",
+                    Data = @"{
+            ""Opløsning"": ""string"",
+            ""Billedfrekvens"": ""int"",
+            ""Sensor"": ""string"",
+            ""Linse"": ""string"",
+            ""Synsfelt"": ""int"",
+            ""Autofokus"": ""bool"",
+            ""Zoom"": ""string"",
+            ""LowLight"": ""bool"",
+            ""HDR"": ""bool"",
+            ""Mikrofon"": ""bool"",
+            ""MikrofonType"": ""string"",
+            ""NoiseReduction"": ""bool"",
+            ""Forbindelse"": ""string"",
+            ""Monteringstype"": ""string"",
+            ""PrivacyShutter"": ""bool"",
+            ""Software"": ""string"",
+            ""Farve"": ""string""
+        }"
+                }
+            );
+
+
         }
     }
 }
