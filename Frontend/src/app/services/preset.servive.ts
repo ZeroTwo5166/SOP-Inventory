@@ -27,7 +27,7 @@ export class PresetService {
 
   //* Method for getting a preset by ID. \\
   findById(presetId: number): Observable<Preset> {
-    return this.http.get<Preset>(this.apiUrl + '/' + presetId);
+    return this.http.get<Preset>(`${this.apiUrl}/${presetId}`);
   }
 
   //* Method for creating a preset. \\

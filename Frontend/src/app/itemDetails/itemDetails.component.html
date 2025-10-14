@@ -52,10 +52,10 @@
         <hr />
       </h2>
     </div>
-    <div *ngIf="!collapsedItemGroup" class="collapsible-content">
-      <div *ngFor="let key of objectKeys(itemInfoObj)">
-          <p><strong>{{ key }}:</strong> {{ itemInfoObj[key] }}</p>
-        </div>
+    <div *ngFor="let key of objectKeys(itemInfoObj)">
+      <ng-container *ngIf="itemInfoObj[key] !== null && itemInfoObj[key] !== ''">
+        <p><strong>{{ key }}:</strong> {{ itemInfoObj[key] }}</p>
+      </ng-container>
     </div>
   </div>
 

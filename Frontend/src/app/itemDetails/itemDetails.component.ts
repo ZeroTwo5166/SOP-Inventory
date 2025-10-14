@@ -72,7 +72,7 @@ export class ItemDetailsComponent implements OnInit {
     },
   };
 
-  itemType: ItemType = { id: 0, typeName: '', presetId:0 };
+  itemType: ItemType = { id: 0, typeName: '', presetId: 0 };
 
   statuses: Status[] = [];
   status: Status = { id: 0, name: '' };
@@ -215,10 +215,13 @@ export class ItemDetailsComponent implements OnInit {
 
     if (this.item?.itemInfo) {
       try {
-        this.itemInfoObj = JSON.parse(this.item.itemInfo);
+        this.itemInfoObj = JSON.parse(this.item.itemInfo); // parse JSON string into object
       } catch (e) {
         console.error("Invalid JSON in itemInfo:", e);
+        this.itemInfoObj = {};
       }
+    } else {
+      this.itemInfoObj = {};
     }
 
   }

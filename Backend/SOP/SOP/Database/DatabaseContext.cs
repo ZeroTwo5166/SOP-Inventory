@@ -347,11 +347,11 @@ namespace SOP.Database
             );
 
             modelBuilder.Entity<Preset>().HasData(
-                new Preset
-                {
-                    Id = 1,
-                    Name = "Computer",
-                    Data = @"{
+    new Preset
+    {
+        Id = 1,
+        Name = "Computer",
+        Data = @"{
             ""CPU"": ""string"",
             ""RAM"": ""string"",
             ""GPU"": ""string"",
@@ -362,12 +362,12 @@ namespace SOP.Database
             ""Kabinet"": ""string"",
             ""Farve"": ""string""
         }"
-                },
-                new Preset
-                {
-                    Id = 2,
-                    Name = "Bærbar",
-                    Data = @"{
+    },
+    new Preset
+    {
+        Id = 2,
+        Name = "Bærbar",
+        Data = @"{
             ""CPU"": ""string"",
             ""RAM"": ""string"",
             ""GPU"": ""string"",
@@ -380,65 +380,59 @@ namespace SOP.Database
             ""Thunderbolt"": ""bool"",
             ""Farve"": ""string""
         }"
-                },
-                new Preset
-                {
-                    Id = 3,
-                    Name = "Skærm",
-                    Data = @"{
+    },
+    new Preset
+    {
+        Id = 3,
+        Name = "Skærm",
+        Data = @"{
             ""Skærmstørrelse"": ""decimal"",
             ""Opløsning"": ""string"",
             ""Paneltype"": ""string"",
             ""Lysstyrke"": ""int"",
             ""Reaktionstid"": ""string"",
             ""HDR"": ""bool"",
-            ""FreeSync"": ""bool"",
-            ""G-Sync"": ""bool"",
             ""BuiltInSpeakers"": ""bool"",
             ""Porte"": ""string"",
             ""Farve"": ""string""
         }"
-                },
-                new Preset
-                {
-                    Id = 4,
-                    Name = "Tastatur",
-                    Data = @"{
+    },
+    new Preset
+    {
+        Id = 4,
+        Name = "Tastatur",
+        Data = @"{
             ""Type"": ""string"",
-            ""SwitchType"": ""string"",
-            ""Layout"": ""string"",
-            ""RGB"": ""bool"",
-            ""Makrotaster"": ""bool"",
+            ""RGB"": ""bool"",            
             ""NumPad"": ""bool"",
             ""Mediakontroller"": ""bool"",
             ""Forbindelse"": ""string"",
             ""Trådløs"": ""bool"",
             ""Farve"": ""string""
         }"
-                },
-                new Preset
-                {
-                    Id = 5,
-                    Name = "Mus",
-                    Data = @"{
+    },
+    new Preset
+    {
+        Id = 5,
+        Name = "Mus",
+        Data = @"{
             ""Type"": ""string"",
             ""Sensor"": ""string"",
-            ""DPI"": ""int"",
+            ""MinDPI"": ""int"",
             ""MaxDPI"": ""int"",
             ""Knapper"": ""int"",
-            ""ProgrammerbareKnapper"": ""int"",
             ""RGB"": ""bool"",
             ""Trådløs"": ""bool"",
             ""Vægt"": ""decimal"",
             ""Ergonomisk"": ""bool"",
             ""Farve"": ""string""
         }"
-                },
-                new Preset
-                {
-                    Id = 6,
-                    Name = "Headset",
-                    Data = @"{
+    },
+    new Preset
+    {
+        Id = 6,
+        Name = "Headset",
+        Data = @"{
             ""Type"": ""string"",
             ""Størrelse"": ""decimal"",
             ""Mikrofon"": ""bool"",
@@ -449,12 +443,12 @@ namespace SOP.Database
             ""RGB"": ""bool"",
             ""Farve"": ""#EC4899""
         }"
-                },
-                new Preset
-                {
-                    Id = 7,
-                    Name = "Printer",
-                    Data = @"{
+    },
+    new Preset
+    {
+        Id = 7,
+        Name = "Printer",
+        Data = @"{
             ""Type"": ""string"",
             ""Farve"": ""bool"",
             ""Duplex"": ""bool"",
@@ -470,12 +464,12 @@ namespace SOP.Database
             ""MånedligtVolumen"": ""int"",
             ""Farve"": ""#06B6D4""
         }"
-                },
-                new Preset
-                {
-                    Id = 8,
-                    Name = "Skrivebord",
-                    Data = @"{
+    },
+    new Preset
+    {
+        Id = 8,
+        Name = "Skrivebord",
+        Data = @"{
             ""Længde"": ""decimal"",
             ""Bredde"": ""decimal"",
             ""Højde"": ""decimal"",
@@ -489,12 +483,12 @@ namespace SOP.Database
             ""HukommelsesPresets"": ""int"",
             ""Farve"": ""string""
         }"
-                },
-                new Preset
-                {
-                    Id = 9,
-                    Name = "Stol",
-                    Data = @"{
+    },
+    new Preset
+    {
+        Id = 9,
+        Name = "Stol",
+        Data = @"{
             ""MinHøjde"": ""decimal"",
             ""MaxHøjde"": ""decimal"",
             ""Bredde"": ""decimal"",
@@ -512,12 +506,12 @@ namespace SOP.Database
             ""Hjul"": ""string"",
             ""Farve"": ""string""
         }"
-                },
-                new Preset
-                {
-                    Id = 10,
-                    Name = "Projektor",
-                    Data = @"{
+    },
+    new Preset
+    {
+        Id = 10,
+        Name = "Projektor",
+        Data = @"{
             ""Opløsning"": ""string"",
             ""NativOpløsning"": ""string"",
             ""Lumens"": ""int"",
@@ -535,12 +529,12 @@ namespace SOP.Database
             ""Støjniveau"": ""int"",
             ""Farve"": ""string""
         }"
-                },
-                new Preset
-                {
-                    Id = 11,
-                    Name = "Router",
-                    Data = @"{
+    },
+    new Preset
+    {
+        Id = 11,
+        Name = "Router",
+        Data = @"{
             ""WiFiStandard"": ""string"",
             ""MaxHastighed"": ""string"",
             ""Frekvens"": ""string"",
@@ -555,16 +549,15 @@ namespace SOP.Database
             ""QoS"": ""bool"",
             ""VPN"": ""bool"",
             ""GæsteNetværk"": ""bool"",
-            ""ForældreKontrol"": ""bool"",
             ""Mesh"": ""bool"",
             ""Farve"": ""string""
         }"
-                },
-                new Preset
-                {
-                    Id = 12,
-                    Name = "Netværksswitch",
-                    Data = @"{
+    },
+    new Preset
+    {
+        Id = 12,
+        Name = "Netværksswitch",
+        Data = @"{
             ""Porter"": ""int"",
             ""PoEPorter"": ""int"",
             ""Managed"": ""bool"",
@@ -581,19 +574,17 @@ namespace SOP.Database
             ""Rack-montering"": ""bool"",
             ""Farve"": ""string""
         }"
-                },
-                new Preset
-                {
-                    Id = 13,
-                    Name = "Tablet",
-                    Data = @"{
+    },
+    new Preset
+    {
+        Id = 13,
+        Name = "Tablet",
+        Data = @"{
             ""CPU"": ""string"",
-            ""Kerner"": ""int"",
             ""RAM"": ""string"",
             ""Storage"": ""string"",
-            ""StorageType"": ""string"",
             ""UdvidelsesMulighed"": ""bool"",
-            ""OS"": ""string"",
+            ""OS-Type"": ""string"",
             ""OSVersion"": ""string"",
             ""Skærmstørrelse"": ""decimal"",
             ""Opløsning"": ""string"",
@@ -611,12 +602,12 @@ namespace SOP.Database
             ""Vægt"": ""decimal"",
             ""Farve"": ""string""
         }"
-                },
-                new Preset
-                {
-                    Id = 14,
-                    Name = "Ekstern Lagerenhed",
-                    Data = @"{
+    },
+    new Preset
+    {
+        Id = 14,
+        Name = "Ekstern Lagerenhed",
+        Data = @"{
             ""Type"": ""string"",
             ""Kapacitet"": ""string"",
             ""Forbindelse"": ""string"",
@@ -625,8 +616,6 @@ namespace SOP.Database
             ""SkrivHastighed"": ""int"",
             ""Kryptering"": ""bool"",
             ""AdgangskodeBeskyttelse"": ""bool"",
-            ""StødResistent"": ""bool"",
-            ""VandResistent"": ""bool"",
             ""Backup Software"": ""bool"",
             ""RAID"": ""bool"",
             ""Strømforsyning"": ""string"",
@@ -634,12 +623,12 @@ namespace SOP.Database
             ""Vægt"": ""decimal"",
             ""Farve"": ""string""
         }"
-                },
-                new Preset
-                {
-                    Id = 15,
-                    Name = "Grafiktablet",
-                    Data = @"{
+    },
+    new Preset
+    {
+        Id = 15,
+        Name = "Grafiktablet",
+        Data = @"{
             ""AktivtOmråde"": ""string"",
             ""Opløsning"": ""int"",
             ""Trykniveauer"": ""int"",
@@ -660,12 +649,12 @@ namespace SOP.Database
             ""Vægt"": ""decimal"",
             ""Farve"": ""string""
         }"
-                },
-                new Preset
-                {
-                    Id = 16,
-                    Name = "Server",
-                    Data = @"{
+    },
+    new Preset
+    {
+        Id = 16,
+        Name = "Server",
+        Data = @"{
             ""CPU"": ""string"",
             ""CPUAntal"": ""int"",
             ""Kerner"": ""int"",
@@ -687,12 +676,12 @@ namespace SOP.Database
             ""HotSwap"": ""bool"",
             ""Farve"": ""string""
         }"
-                },
-                new Preset
-                {
-                    Id = 17,
-                    Name = "UPS",
-                    Data = @"{
+    },
+    new Preset
+    {
+        Id = 17,
+        Name = "UPS",
+        Data = @"{
             ""Kapacitet"": ""int"",
             ""OutputWatt"": ""int"",
             ""Topologi"": ""string"",
@@ -711,34 +700,34 @@ namespace SOP.Database
             ""Software"": ""string"",
             ""Farve"": ""string""
         }"
-                },
-                new Preset
-                {
-                    Id = 18,
-                    Name = "Webcam",
-                    Data = @"{
+    },
+    new Preset
+    {
+        Id = 18,
+        Name = "Webcam",
+        Data = @"{
             ""Opløsning"": ""string"",
             ""Billedfrekvens"": ""int"",
             ""Sensor"": ""string"",
             ""Linse"": ""string"",
-            ""Synsfelt"": ""int"",
             ""Autofokus"": ""bool"",
             ""Zoom"": ""string"",
             ""LowLight"": ""bool"",
             ""HDR"": ""bool"",
             ""Mikrofon"": ""bool"",
-            ""MikrofonType"": ""string"",
-            ""NoiseReduction"": ""bool"",
             ""Forbindelse"": ""string"",
             ""Monteringstype"": ""string"",
             ""PrivacyShutter"": ""bool"",
             ""Software"": ""string"",
             ""Farve"": ""string""
         }"
-                }
-            );
+    }
+);
 
 
         }
+
+
     }
+    
 }

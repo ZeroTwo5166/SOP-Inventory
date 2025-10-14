@@ -59,9 +59,8 @@
               <button class="btn btn-primary ml-2" (click)="IsVisible()">
                 Gå Tilbage
               </button>
-              <button class="btn ms-auto mr-2"
-              [ngClass]="showInfoModal ? 'btn-danger' : 'btn-primary'"
-               (click)="showInformation()"> 
+              <button class="btn ms-auto mr-2" [ngClass]="showInfoModal ? 'btn-danger' : 'btn-primary'"
+                (click)="showInformation()">
                 {{ showInfoModal ? 'Skjul Information' : 'Vis Information' }}
 
               </button>
@@ -170,7 +169,7 @@
               </li>
             </ul>
           </div>
-      
+
         </div>
 
         <!-- Placeholder when no group is selected -->
@@ -289,6 +288,7 @@
           </option>
         </select>
       </div>
+
       <div class="form-group">
         <label for="itemGroupId">Genstandsgruppe</label>
         <select class="form-control" id="itemGroupId" [(ngModel)]="newItem.itemGroupId" name="itemGroupId" required
@@ -299,21 +299,30 @@
         </select>
       </div>
 
-            <!-- Preset preview -->
-      <div *ngIf="selectedPresetData" class="mt-3">
-        <h5>Preset Info:</h5>
-        <ul>
-          <li *ngFor="let key of objectKeys(selectedPresetData)">
-            <strong>{{ key }}:</strong> {{ selectedPresetData[key] }}
-          </li>
-        </ul>
-      </div>
-
-      
       <div class="form-group">
         <label for="serialNumber">Serienummer</label>
         <input type="text" class="form-control" id="serialNumber" [(ngModel)]="newItem.serialNumber"
           name="serialNumber" />
+      </div>
+
+
+      <!--Item Details-->
+      <div *ngIf="selectedPresetData" class="preset-fields-container mt-3">
+        <h5>Genstand Detaljer:</h5>
+
+        <div *ngFor="let key of objectKeys(selectedPresetData)" class="form-group d-flex align-items-center mb-2">
+          <!-- Skip Checkbox -->
+          <input type="checkbox" [id]="'skip-' + key" [(ngModel)]="enabledFields[key]" (change)="toggleField(key)"
+            [name]="'skip-' + key" class="mr-2" />
+          <label [for]="'skip-' + key" class="mb-0 mr-3" style="min-width: 120px;">
+            {{ key }}
+          </label>
+
+          <!-- Input Field -->
+          <input [type]="getInputType(selectedPresetData[key])" class="form-control flex-grow-1" [id]="key"
+            [(ngModel)]="itemInfoObj[key]" [name]="key" [disabled]="!enabledFields[key]"
+            [placeholder]="'Type: ' + selectedPresetData[key]" />
+        </div>
       </div>
 
       <div class="form-group">

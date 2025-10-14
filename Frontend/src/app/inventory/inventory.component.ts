@@ -17,6 +17,7 @@ import { BuildingService } from '../services/building.service';
 import { AddressService } from '../services/address.service';
 import { PresetService } from '../services/preset.servive';
 import { Preset } from '../models/preset';
+import { HttpErrorResponse } from '@angular/common/http';
 
 @Component({
   selector: 'app-inventory',
@@ -37,8 +38,8 @@ export class InventoryComponent implements OnInit {
     roomId: 0,
     itemGroupId: 0,
     serialNumber: '',
-    itemImageUrl: ''
-
+    itemImageUrl: '',
+    itemInfo:''
   };
 
   checkedItemGroup: ItemGroup = {
@@ -61,7 +62,8 @@ export class InventoryComponent implements OnInit {
     roomId: 0,
     itemGroupId: 0,
     serialNumber: '',
-    itemImageUrl: ''
+    itemImageUrl: '',
+    itemInfo:''
   };
 
   selectedItemGroup: ItemGroup = {
@@ -125,6 +127,11 @@ export class InventoryComponent implements OnInit {
   presetFields: { [key: string]: any } = {}; // Store user input for preset fields
   objectKeys = Object.keys;
 
+  itemInfoObj: { [key: string]: any } = {};
+  enabledFields: { [key: string]: boolean } = {};
+
+
+
   constructor(
     private itemService: ItemService,
     private itemGroupService: ItemGroupService,
@@ -134,8 +141,7 @@ export class InventoryComponent implements OnInit {
     private roomService: RoomService,
     private buildingService: BuildingService,
     private addressService: AddressService,
-    private presetService: PresetService // Add this
-
+    private presetService: PresetService 
   ) { }
 
   ngOnInit(): void {
@@ -149,38 +155,86 @@ export class InventoryComponent implements OnInit {
     this.getAddresses();
   }
 
+  getInputType(type: string): string {
+    if (!type) return 'text';
+    type = type.toLowerCase();
 
+    if (type.includes('bool')) return 'checkbox';
+    if (type.includes('int') || type.includes('decimal') || type.includes('number')) return 'number';
+    return 'text';
+  }
+
+  
   onItemGroupChange() {
-    console.log("Item Group Changed");
-
     const groupId = +this.newItem.itemGroupId; // convert to number
 
     const selectedGroup = this.itemGroups.find(ig => ig.id === groupId);
 
-    console.log(selectedGroup)
-    console.log(this.itemGroups)
-    if (selectedGroup && selectedGroup.itemType) {
-          console.log("Item Type:", selectedGroup.itemType);
-        const presetId = selectedGroup.itemType.presetId;
-        
-        if (presetId && presetId > 0) {
-          // Fetch preset data based on presetId
-          this.fetchPresetData(presetId);
-        } else {
-          // No preset for this item type
+    const presetId = selectedGroup?.itemType?.presetId;
+
+    if (!presetId) {
+      this.selectedPresetData = null;
+      return;
+    }
+
+    // 👇 use your PresetService to get the preset data
+    this.presetService.findById(presetId).subscribe({
+      next: (preset: Preset) => {
+        try {
+          this.selectedPresetData = JSON.parse(preset.data);
+          console.log(this.selectedPresetData)
+
+          this.itemInfoObj = {};
+          this.enabledFields = {};
+          for (const key of Object.keys(this.selectedPresetData)) {
+            this.itemInfoObj[key] = null;
+            this.enabledFields[key] = true;
+          }
+        } catch (e) {
+          console.error('Invalid preset JSON', e);
           this.selectedPresetData = null;
-          this.presetFields = {};
         }
-      }
+      },
+      error: (err: HttpErrorResponse) => {
+        console.error('Failed to fetch preset', err);
+        this.selectedPresetData = null;
+      },
+    });
+  }
+
+ 
+
+  // onItemGroupChange() {
+  //   console.log("Item Group Changed");
+
+  //   const groupId = +this.newItem.itemGroupId; // convert to number
+
+  //   const selectedGroup = this.itemGroups.find(ig => ig.id === groupId);
+
+  //   console.log(selectedGroup)
+  //   console.log(this.itemGroups)
+  //   if (selectedGroup && selectedGroup.itemType) {
+  //         console.log("Item Type:", selectedGroup.itemType);
+  //       const presetId = selectedGroup.itemType.presetId;
+        
+  //       if (presetId && presetId > 0) {
+  //         // Fetch preset data based on presetId
+  //         this.fetchPresetData(presetId);
+  //       } else {
+  //         // No preset for this item type
+  //         this.selectedPresetData = null;
+  //         this.presetFields = {};
+  //       }
+  //     }
     
 
-  }
+  // }
 
 
   fetchPresetData(presetId: number): void {
     this.presetService.findById(presetId).subscribe(
       (preset) => {
-        console.log("Fetched Preset:", preset);
+        console.log("Fetched Preset:", preset.data);
         this.selectedPresetData = preset;
         
         // Initialize preset fields with empty values for user input
@@ -428,13 +482,16 @@ export class InventoryComponent implements OnInit {
   async createNewItem(): Promise<void> {
     try {
 
-
       // If an image is selected, upload it first
       if (this.selectedImage) {
         this.isUploadingImage = true;
         this.newItem.itemImageUrl = await this.uploadImageToCloudinaryAsync(this.selectedImage);
         this.isUploadingImage = false;
       }
+      console.log(this.newItem)
+
+      // Convert dynamic fields to string for backend
+      this.newItem.itemInfo = JSON.stringify(this.itemInfoObj);
 
 
       // Call the item service to create a new item and wait for the response
@@ -444,9 +501,12 @@ export class InventoryComponent implements OnInit {
       this.closeNewItemModal();
 
       // Reset the newItem object to its default state for future use
-      this.newItem = { id: 0, itemGroupId: 0, roomId: 0, serialNumber: '', itemImageUrl: '' };
+      this.newItem = { id: 0, itemGroupId: 0, roomId: 0, serialNumber: '', itemImageUrl: '', itemInfo: '' };
+      this.itemInfoObj = {};
+      this.enabledFields = {};
       this.selectedImage = null;
       this.selectedImagePreview = null;
+
 
       // Reload the entire page to reflect changes
       window.location.reload();
@@ -613,6 +673,13 @@ export class InventoryComponent implements OnInit {
     this.archiveNote = '';
     this.showErrorNote = false;
   }
+
+
+  toggleField(key: string) {
+  if (!this.enabledFields[key]) {
+    this.itemInfoObj[key] = null;
+  }
+}
 }
 
 
