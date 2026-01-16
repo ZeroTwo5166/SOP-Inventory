@@ -138,20 +138,20 @@ namespace SOP.Controllers
                 Id = item.Id,
                 RoomId = item.RoomId,
                 ItemGroupId = item.ItemGroupId,
-                SerialNumber = item.SerialNumber,
+                SerialNumber = EncryptionHelper.Decrypt(item.SerialNumber),
                 ItemImageUrl = item.ItemImageUrl,
-                ItemInfo = item.ItemInfo
+                ItemInfo = EncryptionHelper.Decrypt(item.ItemInfo)
             };
             if (item.ItemGroup != null)
             {
                 response.ItemGroup = new ItemItemGroupResponse
                 {
                     Id = item.ItemGroup.Id,
-                    ModelName = item.ItemGroup.ModelName,
+                    ModelName = EncryptionHelper.Decrypt(item.ItemGroup.ModelName),
                     ItemTypeId = item.ItemGroup.ItemTypeId,
                     Price = item.ItemGroup.Price,
                     Quantity = item.ItemGroup.Quantity,
-                    Manufacturer = item.ItemGroup.Manufacturer,
+                    Manufacturer = EncryptionHelper.Decrypt(item.ItemGroup.Manufacturer),
                     WarrantyPeriod = item.ItemGroup.WarrantyPeriod,
                 };
                 if (item.ItemGroup.ItemType != null)
@@ -178,18 +178,18 @@ namespace SOP.Controllers
                     {
                         Id = item.Room.Building.Id,
                         AddressId = item.Room.Building.AddressId,
-                        BuildingName = item.Room.Building.BuildingName,
+                        BuildingName = EncryptionHelper.Decrypt(item.Room.Building.BuildingName),
                     };
 
                     if (item.Room.Building.Address != null)
                     {
                         response.Room.Building.buildingAddress = new ItemAddressResponse
                         {
-                            Id = item.Room.Building.Address.Id, // Added Address Id
+                            Id = item.Room.Building.Address.Id,
                             ZipCode = item.Room.Building.Address.ZipCode,
-                            Road = item.Room.Building.Address.Road,
-                            Region = item.Room.Building.Address.Region,
-                            City = item.Room.Building.Address.City,
+                            Road = EncryptionHelper.Decrypt(item.Room.Building.Address.Road),
+                            Region = EncryptionHelper.Decrypt(item.Room.Building.Address.Region),
+                            City = EncryptionHelper.Decrypt(item.Room.Building.Address.City),
                         };
                     }
                 }
@@ -204,7 +204,7 @@ namespace SOP.Controllers
                         ItemId = statusHistory.ItemId,
                         StatusId = statusHistory.StatusId,
                         StatusUpdateDate = statusHistory.StatusUpdateDate,
-                        Note = statusHistory.Note,
+                        Note = EncryptionHelper.Decrypt(statusHistory.Note),
                     };
                     if (statusHistory.Status != null)
                     {
@@ -238,9 +238,9 @@ namespace SOP.Controllers
             {
                 RoomId = itemRequest.RoomId,
                 ItemGroupId = itemRequest.ItemGroupId,
-                SerialNumber = itemRequest.SerialNumber,
+                SerialNumber = EncryptionHelper.Encrypt(itemRequest.SerialNumber),
                 ItemImageUrl = itemRequest.ItemImageUrl,
-                ItemInfo = itemRequest.ItemInfo,
+                ItemInfo = EncryptionHelper.Encrypt(itemRequest.ItemInfo),
             };
         }
     }

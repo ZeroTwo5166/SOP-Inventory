@@ -135,7 +135,7 @@ namespace SOP.Controllers
                 response.Building = new BuildingRoomResponse
                 {
                     Id = room.Building.Id,
-                    BuildingName = room.Building.BuildingName,
+                    BuildingName = EncryptionHelper.Decrypt(room.Building.BuildingName),
                     AddressId = room.Building.AddressId,
                 };
 
@@ -144,9 +144,9 @@ namespace SOP.Controllers
                     response.Building.buildingAddress = new RoomAddressResponse
                     {
                         ZipCode = room.Building.Address.ZipCode,
-                        Region = room.Building.Address.Region,
-                        City = room.Building.Address.City,
-                        Road = room.Building.Address.Road,
+                        Region = EncryptionHelper.Decrypt(room.Building.Address.Region),
+                        City = EncryptionHelper.Decrypt(room.Building.Address.City),
+                        Road = EncryptionHelper.Decrypt(room.Building.Address.Road),
                     };
                 }
             }

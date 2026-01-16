@@ -143,8 +143,8 @@ namespace SOP.Controllers
             {
                 Id = Request.Id,
                 Date = Request.Date,
-                Item = Request.Item,
-                Message = Request.Message,
+                Item = EncryptionHelper.Decrypt(Request.Item),
+                Message = EncryptionHelper.Decrypt(Request.Message),
                 UserId = Request.UserId,
                 Status = Request.Status,
                 RecipientEmail = Request.RecipientEmail,
@@ -156,7 +156,7 @@ namespace SOP.Controllers
                 {
                     Id = Request.User.Id,
                     Email = EncryptionHelper.Decrypt(Request.User.Email),
-                    Name = Request.User.Name,
+                    Name = EncryptionHelper.Decrypt(Request.User.Name),
                     RoleId = Request.User.RoleId,
                     TwoFactorAuthentication = Request.User.TwoFactorAuthentication,
                 };
@@ -170,9 +170,9 @@ namespace SOP.Controllers
             return new Request
             {
                 Date = DateTime.UtcNow, // Er ikke sikker på den her
-                Message = requestRequest.Message,
+                Message = EncryptionHelper.Encrypt(requestRequest.Message),
                 UserId = requestRequest.UserId,
-                Item = requestRequest.Item,
+                Item = EncryptionHelper.Encrypt(requestRequest.Item),
                 Status = requestRequest.Status,
                 RecipientEmail = requestRequest.RecipientEmail,
             };

@@ -1,6 +1,7 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using SOP.Archive.DTOs;
 using SOP.Entities;
+using SOP.Encryption;
 
 namespace SOP.Controllers
 {
@@ -134,18 +135,19 @@ namespace SOP.Controllers
             }
         }
 
-        private ItemGroupResponse MapItemGroupToItemGroupResponse(ItemGroup itemGroup)
+        private static ItemGroupResponse MapItemGroupToItemGroupResponse(ItemGroup itemGroup)
         {
             ItemGroupResponse response = new ItemGroupResponse
             {
                 Id = itemGroup.Id,
                 ItemTypeId = itemGroup.ItemTypeId,
-                ModelName = itemGroup.ModelName,
+                ModelName = EncryptionHelper.Decrypt(itemGroup.ModelName),
                 Price = itemGroup.Price,
-                Manufacturer = itemGroup.Manufacturer,
+                Manufacturer = EncryptionHelper.Decrypt(itemGroup.Manufacturer),
                 WarrantyPeriod = itemGroup.WarrantyPeriod,
                 Quantity = itemGroup.Quantity,
             };
+            
             if (itemGroup.ItemType != null)
             {
                 response.ItemType = new ItemGroupItemTypeResponse
@@ -158,14 +160,15 @@ namespace SOP.Controllers
             return response;
         }
 
-        private ItemGroup MapItemGroupRequestToItemGroup(ItemGroupRequest itemGroupRequest)
+        // MODIFIED: Add encryption
+        private static ItemGroup MapItemGroupRequestToItemGroup(ItemGroupRequest itemGroupRequest)
         {
             return new ItemGroup
             {
                 ItemTypeId = itemGroupRequest.ItemTypeId,
-                ModelName = itemGroupRequest.ModelName,
+                ModelName = EncryptionHelper.Encrypt(itemGroupRequest.ModelName),
                 Price = itemGroupRequest.Price,
-                Manufacturer = itemGroupRequest.Manufacturer,
+                Manufacturer = EncryptionHelper.Encrypt(itemGroupRequest.Manufacturer),
                 WarrantyPeriod = itemGroupRequest.WarrantyPeriod,
                 Quantity = itemGroupRequest.Quantity,
             };

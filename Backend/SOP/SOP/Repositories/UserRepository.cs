@@ -2,7 +2,6 @@
 using SOP.Database;
 using SOP.Entities;
 using System.Data;
-using SOP.Encryption;
 
 namespace SOP.Repositories
 {

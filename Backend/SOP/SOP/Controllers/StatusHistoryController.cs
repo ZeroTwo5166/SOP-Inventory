@@ -1,6 +1,7 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using SOP.Entities;
 using SOP.Repositories;
+using SOP.Encryption;
 
 namespace SOP.Controllers
 {
@@ -109,7 +110,7 @@ namespace SOP.Controllers
                 ItemId = statusHistory.ItemId,
                 StatusId = statusHistory.StatusId,
                 StatusUpdateDate = statusHistory.StatusUpdateDate,
-                Note = statusHistory.Note
+                Note = EncryptionHelper.Decrypt(statusHistory.Note)
             };
             if(statusHistory.Status != null)
             {
@@ -126,7 +127,7 @@ namespace SOP.Controllers
                     Id = statusHistory.Item.Id,
                     RoomId = statusHistory.Item.RoomId,
                     ItemGroupId = statusHistory.Item.ItemGroupId,
-                    SerialNumber = statusHistory.Item.SerialNumber,
+                    SerialNumber = EncryptionHelper.Decrypt(statusHistory.Item.SerialNumber),
                 };
             }
             return response;
@@ -139,7 +140,7 @@ namespace SOP.Controllers
                 ItemId = statusHistoryRequest.ItemId,
                 StatusId = statusHistoryRequest.StatusId,
                 StatusUpdateDate= statusHistoryRequest.StatusUpdateDate,
-                Note= statusHistoryRequest.Note
+                Note= EncryptionHelper.Encrypt(statusHistoryRequest.Note)
             };
         }
     }

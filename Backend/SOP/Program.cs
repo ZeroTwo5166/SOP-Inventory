@@ -1,3 +1,18 @@
+// Validate encryption keys exist
+var encryptionKey = Environment.GetEnvironmentVariable("ENCRYPTION_KEY");
+var encryptionIv = Environment.GetEnvironmentVariable("ENCRYPTION_IV");
+
+if (string.IsNullOrEmpty(encryptionKey) || encryptionKey.Length != 32)
+{
+    throw new InvalidOperationException("ENCRYPTION_KEY must be exactly 32 characters.");
+}
+
+if (string.IsNullOrEmpty(encryptionIv) || encryptionIv.Length != 16)
+{
+    throw new InvalidOperationException("ENCRYPTION_IV must be exactly 16 characters.");
+}
+
+
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddScoped<IArchive_ItemRepository, Archive_ItemRepository>();

@@ -4,6 +4,7 @@ using SOP.DTOs;
 using SOP.Entities;
 using SOP.Repositories;
 using System.Net;
+using SOP.Encryption;
 
 namespace SOP.Controllers
 {
@@ -128,7 +129,7 @@ namespace SOP.Controllers
             BuildingResponse response = new BuildingResponse
             {
                 Id = building.Id,
-                BuildingName = building.BuildingName,
+                BuildingName = EncryptionHelper.Decrypt(building.BuildingName),
                 ZipCode = building.Address.ZipCode,
             };
 
@@ -151,7 +152,7 @@ namespace SOP.Controllers
         {
             return new Building
             {
-                BuildingName = buildingRequest.BuildingName,
+                BuildingName = EncryptionHelper.Encrypt(buildingRequest.BuildingName),
                 AddressId = buildingRequest.AddressId,
             };
         }

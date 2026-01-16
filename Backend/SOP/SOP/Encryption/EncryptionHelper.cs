@@ -5,11 +5,20 @@
 
     public static class EncryptionHelper
     {
-        private static readonly byte[] Key = Encoding.UTF8.GetBytes("1234567890123456"); // MUST be at least 16 characters
-        private static readonly byte[] IV = Encoding.UTF8.GetBytes("abcdefghijklmnop"); //  MUST be at least 16 characters
+        // private static readonly byte[] Key = Encoding.UTF8.GetBytes("1234567890123456"); // MUST be at least 16 characters
+        // private static readonly byte[] IV = Encoding.UTF8.GetBytes("abcdefghijklmnop"); //  MUST be at least 16 characters
+
+        private static readonly byte[] Key = Encoding.UTF8.GetBytes(
+            Environment.GetEnvironmentVariable("ENCRYPTION_KEY") ?? "12345678901234567890123456789012" // Must be 32 bytes
+        );
+        private static readonly byte[] IV = Encoding.UTF8.GetBytes(
+            Environment.GetEnvironmentVariable("ENCRYPTION_IV") ?? "abcdefghijklmnop" // Must be 16 bytes
+        );
 
         public static string Encrypt(string plainText)
         {
+            if (string.IsNullOrEmpty(plainText)) return plainText;
+
             using var aes = Aes.Create();
             aes.Key = Key;
             aes.IV = IV;
@@ -27,6 +36,7 @@
 
         public static string Decrypt(string cipherText)
         {
+            if (string.IsNullOrEmpty(cipherText)) return cipherText;
             var buffer = Convert.FromBase64String(cipherText);
             using var aes = Aes.Create();
             aes.Key = Key;
@@ -38,6 +48,8 @@
             using var sr = new StreamReader(cs);
             return sr.ReadToEnd();
         }
+
+
     }
 
 }

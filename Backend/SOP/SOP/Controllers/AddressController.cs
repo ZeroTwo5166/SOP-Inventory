@@ -133,9 +133,9 @@ namespace SOP.Controllers
             {
                 Id = address.Id,
                 ZipCode = address.ZipCode,
-                Region = address.Region,
-                City = address.City,
-                Road = address.Road,
+                Region = EncryptionHelper.Decrypt(address.Region),
+                City = EncryptionHelper.Decrypt(address.City),
+                Road = EncryptionHelper.Decrypt(address.Road),
             };
 
             return response;
@@ -146,10 +146,15 @@ namespace SOP.Controllers
             return new Address
             {
                 ZipCode = addressRequest.ZipCode,
-                Region = addressRequest.Region,
-                City = addressRequest.City,
-                Road = addressRequest.Road,
+                Region = EncryptionHelper.Encrypt(addressRequest.Region),
+                City = EncryptionHelper.Encrypt(addressRequest.City),
+                Road = EncryptionHelper.Encrypt(addressRequest.Road),
             };
         }
+
+       
     }
 }
+
+
+    

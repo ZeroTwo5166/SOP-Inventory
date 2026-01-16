@@ -131,37 +131,39 @@ namespace SOP.Controllers
             }
         }
 
-        private ComputerPartResponse MapComputerPartToComputerPartResponse(ComputerPart computerPart)
+        private static ComputerPartResponse MapComputerPartToComputerPartResponse(ComputerPart computerPart)
         {
             ComputerPartResponse response = new ComputerPartResponse
             {
                 Id = computerPart.Id,
                 PartGroupId = computerPart.PartGroupId,
-                SerialNumber = computerPart.SerialNumber,
-                ModelNumber = computerPart.ModelNumber,
+                SerialNumber = EncryptionHelper.Decrypt(computerPart.SerialNumber),
+                ModelNumber = EncryptionHelper.Decrypt(computerPart.ModelNumber),
             };
+            
             if(computerPart.PartGroup != null)
             {
                 response.Group = new ComputerPartPartGroupResponse
                 {
                     Id = computerPart.PartGroup.Id,
-                    PartName = computerPart.PartGroup.PartName,
+                    PartName = EncryptionHelper.Decrypt(computerPart.PartGroup.PartName),
                     Price = computerPart.PartGroup.Price,
-                    Manufacturer = computerPart.PartGroup.Manufacturer,
+                    Manufacturer = EncryptionHelper.Decrypt(computerPart.PartGroup.Manufacturer),
                     WarrantyPeriod = computerPart.PartGroup.WarrantyPeriod,
                     ReleaseDate = computerPart.PartGroup.ReleaseDate,
                     PartTypeId = computerPart.PartGroup.PartTypeId,
                 };
+                
                 if (computerPart.PartGroup.PartType != null)
                 {
                     response.Group.PartType = new ComputerPartPartGroupPartTypeResponse
                     {
-
                         Id = computerPart.PartGroup.PartType.Id,
                         PartTypeName = computerPart.PartGroup.PartType.PartTypeName,
                     };
                 }
             }
+            
             if(computerPart.Computer_ComputerPart != null)
             {
                 response.Computer_ComputerPart = new ComputerPartComputer_ComputerPartResponse
@@ -174,14 +176,17 @@ namespace SOP.Controllers
             return response;
         }
 
-        private ComputerPart MapComputerPartRequestToComputerPart(ComputerPartRequest computerPartRequest)
+        // MODIFIED: Add encryption
+        private static ComputerPart MapComputerPartRequestToComputerPart(ComputerPartRequest computerPartRequest)
         {
             return new ComputerPart
             {
                 PartGroupId = computerPartRequest.PartGroupId,
-                SerialNumber = computerPartRequest.SerialNumber,
-                ModelNumber = computerPartRequest.ModelNumber,
+                SerialNumber = EncryptionHelper.Encrypt(computerPartRequest.SerialNumber),
+                ModelNumber = EncryptionHelper.Encrypt(computerPartRequest.ModelNumber),
             };
         }
     }
 }
+    
+
