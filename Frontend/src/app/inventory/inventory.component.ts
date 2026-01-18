@@ -377,6 +377,8 @@ export class InventoryComponent implements OnInit {
 
     const cloudName = 'dkrcapzct';
     const uploadUrl = `https://api.cloudinary.com/v1_1/${cloudName}/image/upload`;
+    //MAKE CLOUDINARY ACC AND ENTER YOUR API HERE
+
 
     return fetch(uploadUrl, {
       method: 'POST',
